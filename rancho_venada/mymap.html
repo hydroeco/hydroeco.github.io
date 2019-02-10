@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<head>
+<!-- Leaflet assets -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js" integrity="sha512-tAGcCfR4Sc5ZP5ZoVz0quoZDYX5aCtEm/eu1KhSLj2c9eFrylXZknQYmxUssFaVJKvvc0dJQixhGjG2yXWiV9Q==" crossorigin=""></script>
+
+  <link rel="stylesheet" href="../dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="../dist/MarkerCluster.Default.css" />
+  <script src="../dist/leaflet.markercluster-src.js"></script>
+
+<!-- jquery -->
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+
+<style>
+#my-map {height: calc(100% - 80px); width: calc(100% - 44px); position: absolute}
+</style>
+</head>
+
+
+<body>
+  <!-- DESCRIPTION OF SITE HERE -->
+  <h4> Sensor datamap for the Rancho Venada field site.  </h4>
+  <div style="border: thick solid black" id="my-map"></div>
+
+  <script>
+  window.onload = function () {
+    // setup basemaps
+      var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+        maxZoom: 20,
+        subdomains:['mt0','mt1','mt2','mt3']});
+    var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',{
+        maxZoom: 20,
+        subdomains:['mt0','mt1','mt2','mt3']});
+    var basemaps = {"Google satellite":googleSat, "Google terrain":googleTerrain}
+
+
+    var markerClusters = L.markerClusterGroup();
+    $.getJSON("mymap.geojson", function(data) { 
+        var categories = {},
+          Type;
+
+        var allPoints = L.geoJson(data, {
+          onEachFeature: function (feature, layer) {
+            layer.bindPopup(feature.properties.image, {'maxHeight': '400', 'maxWidth': "auto"});
+            Type = feature.properties.marker_category;
+            if (typeof categories[Type] === "undefined") {
+              categories[Type] = [];
+            }
+            categories[Type].push(layer);
+          }, 
+
+          pointToLayer: function (feature, latlng) { 
+            return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: feature.properties.marker_color});
+          },
+        });
+        var map = L.map('my-map').fitBounds(allPoints.getBounds());
+
+        var overlaysObj = {},
+          TypeName,
+          TypeArray,
+          TypeLG;
+
+        for (TypeName in categories) {
+          TypeArray = categories[TypeName];
+          TypeLG = L.layerGroup(TypeArray);
+          TypeLG.TypeName = TypeName;
+          overlaysObj[TypeName] = TypeLG;
+        }
+
+
+      L.control.layers(basemaps).addTo(map);
+      googleSat.addTo(map);
+      var markers = L.markerClusterGroup();
+      markers.addLayer(allPoints);
+      map.addLayer(markers);
+    });
+  };
+  </script>
+
+</body>
+</html>
