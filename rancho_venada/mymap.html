@@ -10,9 +10,7 @@
 
 <!-- jquery -->
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-
 
 
 <style>
@@ -49,6 +47,18 @@ background-color: #2da0e2;}
         subdomains:['mt0','mt1','mt2','mt3']});
     var basemaps = {"Google satellite":googleSat, "Google terrain":googleTerrain}
 
+    var wxIcon = L.icon({
+	    iconUrl: './wx.png',
+	    color: 'blue',
+	    iconSize:     [60, 60], // size of the icon
+	    iconAnchor:   [22, 30], // point of the icon which will correspond to marker's location
+	    popupAnchor:  [0, 0] // point from which the popup should open relative to the iconAnchor
+	});
+
+	var firefoxIcon = L.icon({
+        iconUrl: 'http://joshuafrazier.info/images/firefox.svg',
+        iconSize: [38, 95], // size of the icon
+        });
 
     var markerClusters = L.markerClusterGroup();
     $.getJSON("mymap.geojson", function(data) { 
@@ -66,7 +76,12 @@ background-color: #2da0e2;}
           }, 
 
           pointToLayer: function (feature, latlng) { 
-            return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: feature.properties.marker_color});
+          	if (feature.properties.marker_category=="WS") {
+          		return L.marker(latlng, {icon: wxIcon});
+            	// return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: 'blue'});
+            } else {
+            	return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: feature.properties.marker_color});
+            }
           },
         });
         var map = L.map('my-map').fitBounds(allPoints.getBounds());
