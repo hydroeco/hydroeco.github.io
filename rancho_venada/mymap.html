@@ -14,6 +14,9 @@
 
 
 <style>
+
+h4 { font-family: Arial }
+
 #my-map {height: calc(100% - 80px); width: calc(100% - 44px); position: absolute}
 .leaflet-control-layers-toggle {
   background-image: url(https://i.stack.imgur.com/3keSg.png) !important;
@@ -52,7 +55,7 @@ background-color: #2da0e2;}
 	    color: 'blue',
 	    iconSize:     [60, 60], // size of the icon
 	    iconAnchor:   [22, 30], // point of the icon which will correspond to marker's location
-	    popupAnchor:  [0, 0] // point from which the popup should open relative to the iconAnchor
+	    popupAnchor:  [0, -30] // point from which the popup should open relative to the iconAnchor
 	});
 
 	var firefoxIcon = L.icon({
