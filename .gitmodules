@@ -1,3 +1,6 @@
 [submodule "Leaflet.Control.Opacity"]
 	path = Leaflet.Control.Opacity
 	url = https://github.com/dayjournal/Leaflet.Control.Opacity
+[submodule "Leaflet.OpacityControls"]
+	path = Leaflet.OpacityControls
+	url = https://github.com/lizardtechblog/Leaflet.OpacityControls

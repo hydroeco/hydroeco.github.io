@@ -11,6 +11,9 @@
 <script src="../Leaflet.Control.Opacity/dist/L.Control.Opacity.js"></script>
 <link href="../Leaflet.Control.Opacity/dist/L.Control.Opacity.css" rel="stylesheet" />
 
+<script src="../Leaflet.OpacityControls/lib/opacity/Control.Opacity.js"></script>
+<link href="../Leaflet.OpacityControls/lib/opacity/Control.Opacity.css" rel="stylesheet" />
+
 <!-- jquery -->
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -41,6 +44,8 @@ background-color: #2da0e2;}
   <!-- DESCRIPTION OF SITE HERE -->
   <h4> Sensor datamap for the Rancho Venada field site.  </h4>
   <div style="border: thick solid black" id="my-map"></div>
+
+
 
   <script>
   window.onload = function () {
@@ -108,15 +113,22 @@ background-color: #2da0e2;}
       var lyr = L.tileLayer('./hillshade/{z}/{x}/{y}.png', {maxZoom: 20,tms: true, opacity: 1.0, attribution: ""});
       var overlaymaps = {"2017 LiDAR Hillshade": lyr}
 
+      // var higherOpacity = new L.Control.higherOpacity();
+      // map.addControl(higherOpacity);
+      // var lowerOpacity = new L.Control.lowerOpacity();
+      // map.addControl(lowerOpacity);
+      // var opacitySlider = new L.Control.opacitySlider();
+      // map.addControl(opacitySlider);
+      // higherOpacity.setOpacityLayer(overlaymaps);
+
       L.control.layers(basemaps, overlaymaps).addTo(map);
 
-      //OpacityControl
-        L.control.opacity(
-            overlaymaps,
-            {
-            label: "Opacity"
-            }
-        ).addTo(map);
+      L.control.opacity(
+          overlaymaps,
+          {
+          label: "Click (don't slide) to change opacity"
+          }
+      ).addTo(map);
 
 
       googleSat.addTo(map);
