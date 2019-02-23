@@ -121,7 +121,7 @@ background-color: #2da0e2;}
       // map.addControl(opacitySlider);
       // higherOpacity.setOpacityLayer(overlaymaps);
 
-      L.control.layers(basemaps, overlaymaps).addTo(map);
+      L.control.layers(basemaps, overlaymaps, {collapsed:false}).addTo(map);
 
       L.control.opacity(
           overlaymaps,
