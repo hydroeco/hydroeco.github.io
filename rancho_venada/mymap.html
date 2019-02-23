@@ -8,6 +8,9 @@
 <link rel="stylesheet" href="../dist/MarkerCluster.Default.css" />
 <script src="../dist/leaflet.markercluster-src.js"></script>
 
+<script src="../Leaflet.Control.Opacity/dist/L.Control.Opacity.js"></script>
+<link href="../Leaflet.Control.Opacity/dist/L.Control.Opacity.css" rel="stylesheet" />
+
 <!-- jquery -->
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -101,8 +104,21 @@ background-color: #2da0e2;}
           overlaysObj[TypeName] = TypeLG;
         }
 
+      // Overlay layers (TMS)
+      var lyr = L.tileLayer('./hillshade/{z}/{x}/{y}.png', {maxZoom: 20,tms: true, opacity: 1.0, attribution: ""});
+      var overlaymaps = {"2017 LiDAR Hillshade": lyr}
 
-      L.control.layers(basemaps).addTo(map);
+      L.control.layers(basemaps, overlaymaps).addTo(map);
+
+      //OpacityControl
+        L.control.opacity(
+            overlaymaps,
+            {
+            label: "Opacity"
+            }
+        ).addTo(map);
+
+
       googleSat.addTo(map);
       var markers = L.markerClusterGroup();
       markers.addLayer(allPoints);

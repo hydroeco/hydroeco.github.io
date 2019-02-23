@@ -1,0 +1,3 @@
+[submodule "Leaflet.Control.Opacity"]
+	path = Leaflet.Control.Opacity
+	url = https://github.com/dayjournal/Leaflet.Control.Opacity
