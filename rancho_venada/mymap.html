@@ -78,7 +78,7 @@ background-color: #2da0e2;}
 
         var allPoints = L.geoJson(data, {
           onEachFeature: function (feature, layer) {
-            layer.bindPopup(feature.properties.image, {'maxHeight': '400', 'maxWidth': "auto"});
+            layer.bindPopup(feature.properties.image, {'maxHeight': '500', 'maxWidth': "auto"});
             Type = feature.properties.marker_category;
             if (typeof categories[Type] === "undefined") {
               categories[Type] = [];
