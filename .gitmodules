@@ -4,3 +4,6 @@
 [submodule "Leaflet.OpacityControls"]
 	path = Leaflet.OpacityControls
 	url = https://github.com/lizardtechblog/Leaflet.OpacityControls
+[submodule "Leaflet.LayerGroup.Collision"]
+	path = Leaflet.LayerGroup.Collision
+	url = https://github.com/MazeMap/Leaflet.LayerGroup.Collision
