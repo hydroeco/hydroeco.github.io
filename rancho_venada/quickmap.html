@@ -28,7 +28,7 @@
 
 h4 { font-family: Arial }
 
-#my-map {height: calc(100% - 80px); width: calc(100% - 44px); position: absolute}
+#my-map {width: 500px; height: 500px; position: absolute}
 .leaflet-control-layers-toggle {
   background-image: url(https://i.stack.imgur.com/3keSg.png) !important;
   background-color: #2da0e2;
@@ -54,12 +54,7 @@ background-color: #2da0e2;}
       var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
         maxZoom: 20,
         subdomains:['mt0','mt1','mt2','mt3']});
-//     var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',{
-//         maxZoom: 20,
-//         subdomains:['mt0','mt1','mt2','mt3']});
     var basemaps = {"Google satellite":googleSat}
-
-    
 
     $.getJSON("wells_piezos.geojson", function(data) { 
         
@@ -67,8 +62,6 @@ background-color: #2da0e2;}
         //         layer.bindPopup(feature.properties.Name);
 
         // }
-
-
         
         var textPoints = L.geoJson(data, {
           pointToLayer: function (feature, latlng) { 
@@ -80,19 +73,16 @@ background-color: #2da0e2;}
 
         var markerPoints = L.geoJson(data, {
           pointToLayer: function (feature, latlng) { 
-              return L.circleMarker(latlng, {radius: 3, opacity:1, weight:1.0, fillOpacity:1.0, color:'black', fillColor:feature.properties.marker_color});
+              return L.circleMarker(latlng, {radius: 4, opacity:1, weight:1.0, fillOpacity:1.0, color:'black', fillColor:'white'});
             }
           });
         
 
         var map = L.map('my-map').fitBounds(textPoints.getBounds());
-        // L.geoJson(data, {
-        //   onEachFeature: onEachFeature
-        //   }).addTo(map);
-      // Overlay layers (TMS)
+
+      // Overlay layers LiDAR hillshade
       var lyr = L.tileLayer('./hillshade/{z}/{x}/{y}.png', {maxZoom: 20,tms: true, opacity: 1.0, attribution: ""});
       var overlaymaps = {"2017 LiDAR Hillshade": lyr}
-
       L.control.layers(basemaps, overlaymaps, {collapsed:false}).addTo(map);
       L.control.opacity(
           overlaymaps,
@@ -100,12 +90,10 @@ background-color: #2da0e2;}
           label: "Opacity"
           }
       ).addTo(map);
-//       map.addLayer(allPoints);
     googleSat.addTo(map);
     map.addLayer(markerPoints);
     map.addLayer(textPoints);
     });
-    
   };
   </script>
 
