@@ -95,8 +95,19 @@ background-color: #2da0e2;}
             }
           },
         });
-        var map = L.map('my-map').fitBounds(allPoints.getBounds());
 
+
+        var textPoints = L.geoJson(data, {
+          pointToLayer: function (feature, latlng) { 
+            return L.marker(latlng, {icon:L.divIcon({html:'<h5 style="color: #eee; opacity:0.01;">' + feature.properties.Location + '</h5>', className:'dummy'})})
+              // return L.circleMarker(latlng, {icon: L.divIcon({html:"China"},radius: 3, opacity:1, weight:1.0, fillOpacity:1.0, color:'black', fillColor:feature.properties.marker_color});
+            }
+          }).bindTooltip(function (layer) {
+              return layer.feature.properties.Location;})
+
+    
+
+        var map = L.map('my-map').fitBounds(allPoints.getBounds());
         var overlaysObj = {},
           TypeName,
           TypeArray,
@@ -135,6 +146,7 @@ background-color: #2da0e2;}
       var markers = L.markerClusterGroup();
       markers.addLayer(allPoints);
       map.addLayer(markers);
+      // map.addLayer(textPoints);
     });
   };
   </script>
