@@ -7,3 +7,6 @@
 [submodule "Leaflet.LayerGroup.Collision"]
 	path = Leaflet.LayerGroup.Collision
 	url = https://github.com/MazeMap/Leaflet.LayerGroup.Collision
+[submodule "Leaflet.HtmlLegend"]
+	path = Leaflet.HtmlLegend
+	url = https://github.com/consbio/Leaflet.HtmlLegend

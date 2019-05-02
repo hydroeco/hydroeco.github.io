@@ -18,6 +18,8 @@
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
+<link rel="stylesheet" href="../Leaflet.HtmlLegend/src/L.Control.HtmlLegend.css" />
+<script src="../Leaflet.HtmlLegend/src/L.Control.HtmlLegend.js"></script>
 
 <style>
 
@@ -89,7 +91,6 @@ background-color: #2da0e2;}
           pointToLayer: function (feature, latlng) { 
           	if (feature.properties.marker_category=="WS") {
           		return L.marker(latlng, {icon: wxIcon});
-            	// return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: 'blue'});
             } else {
             	return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: feature.properties.marker_color});
             }
@@ -141,11 +142,20 @@ background-color: #2da0e2;}
           }
       ).addTo(map);
 
-
       googleSat.addTo(map);
       var markers = L.markerClusterGroup();
       markers.addLayer(allPoints);
       map.addLayer(markers);
+
+
+      // var htmlLegend = L.control.htmllegend({...});
+    //   htmlLegend.addLegend({
+    //     name: 'Layer name',
+    //     layer: markers,
+    //     elements: [{
+    //         html: '<div>Legend description</div>'
+    //     }]
+    // });
       // map.addLayer(textPoints);
     });
   };
