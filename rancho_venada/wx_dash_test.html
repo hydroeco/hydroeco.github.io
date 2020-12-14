@@ -1,97 +1,101 @@
-<!DOCTYPE html>
-            <html>
-            <body>
-            <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-            * {
-              box-sizing: border-box;
-            }
 
-            body {
-              margin: 0;
-              font-family: Arial;
-            }
+    <!DOCTYPE html>
+    <html>
+    <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* {
+  box-sizing: border-box;
+}
 
-            /* The grid: Four equal columns that floats next to each other */
-            .column {
-              float: left;
-              width: 25%;
-              padding: 10px;
-            }
+body {
+  margin: 0;
+  font-family: Arial;
+}
 
-            /* Style the images inside the grid */
-            .column img {
-              opacity: 0.8; 
-              cursor: pointer; 
-            }
+/* The grid: Four equal columns that floats next to each other */
+.column {
+  float: left;
+  width: 25%;
+  padding: 10px;
+}
 
-            .column img:hover {
-              opacity: 1;
-            }
+/* Style the images inside the grid */
+.column img {
+  opacity: 0.8; 
+  cursor: pointer; 
+}
 
-            /* Clear floats after the columns */
-            .row:after {
-              content: "";
-              display: table;
-              clear: both;
-            }
+.column img:hover {
+  opacity: 1;
+}
 
-            /* The expanding image container */
-            .container {
-              position: relative;
-              display: none;
-            }
+/* Clear floats after the columns */
+.row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
 
-            /* Expanding image text */
-            #imgtext {
-              position: absolute;
-              bottom: 15px;
-              left: 15px;
-              color: white;
-              font-size: 20px;
-            }
+/* The expanding image container */
+.container {
+  position: relative;
+  display: none;
+}
 
-            /* Closable button inside the expanded image */
-            .closebtn {
-              position: absolute;
-              top: 10px;
-              right: 15px;
-              color: white;
-              font-size: 35px;
-              cursor: pointer;
-            }
-            </style>
-            </head>
-            <h1 align="center">Rancho Venada Weather Station Dashboard</h1><h2 align='center'>Return to <a target='_blank' href='./wells_piezos_dash.html'>borings/piezo dashboard</a> or <a target='_blank' href='./mymap.html'>map</a>.</h2>Current as of 12/13/2020, 20:00:00<br>Download <a href="https://hydroeco.github.io/rancho_venada/rvws.csv" download>weather</a> or <a href="https://hydroeco.github.io/rancho_venada/sap.csv" download>sapflow</a><h2 align='left'> Current water year precip: 0.7 in (18.60 mm)</h2><h2 align='left'> Precip last 24 hours: 0.6 in (15.00 mm)</h2><h2 align='left'> Current temperature: 48.7 F (9.3 C)</h2>
-            <!-- The grid: four columns -->
-        <div class="row">
-          <div class="column">
-            <img src="weather_48.png" alt="48" onclick="myFunction(this);">
-          </div>
-          <div class="column">
-            <img src="weather_wy.png" alt="wy" onclick="myFunction(this);">
-          </div>
-        </div>
+/* Expanding image text */
+#imgtext {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  color: white;
+  font-size: 20px;
+}
 
-        <!-- The expanding image container -->
-        <div class="container">
-          <!-- Close the image -->
-          <span onclick="this.parentElement.style.display='none'" class="closebtn">&times;</span>
+/* Closable button inside the expanded image */
+.closebtn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  color: white;
+  font-size: 35px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+    
+    <h1 align="center">Rancho Venada Weather Station Dashboard</h1><h2 align='center'>Return to <a target='_blank' href='./wells_piezos_dash.html'>borings/piezo dashboard</a> or <a target='_blank' href='./mymap.html'>map</a>.</h2>Current as of 12/13/2020, 21:00:00<br>Download <a href="https://hydroeco.github.io/rancho_venada/rvws.csv" download>weather</a> or <a href="https://hydroeco.github.io/rancho_venada/sap.csv" download>sapflow</a><h2 align='left'> Current water year precip: 0.7 in (18.60 mm)</h2><h2 align='left'> Precip last 24 hours: 0.6 in (15.00 mm)</h2><h2 align='left'> Current temperature: 48.3 F (9.0 C)</h2>  
+    <!-- The columns -->
+    <h3 align='left'> Click to see most recent 48 hours (right) or water year to date (left)</h3>
+    <div class="row">
+      <div class="column">
+        <br>Water year</br>
+        <img src="./weather_wy.png" alt="WY" style="width:100%" onclick="myFunction(this);">
+      </div>
+      <div class="column">
+          <br>Most recent 48 hours</br>
+        <img src="./weather_48.png" alt="48" style="width:100%" onclick="myFunction(this);">
+      </div>
+    </div>
 
-          <!-- Expanded image -->
-          <img id="expandedImg" style="width:100%">
+    <div class="container">
+      <span onclick="this.parentElement.style.display='none'" class="closebtn">&times;</span>
+      <img id="expandedImg" style="width:100%">
+      <div id="imgtext"></div>
+    </div>
 
-          <!-- Image text -->
-          <div id="imgtext"></div>
-        </div>
-        
-            <script>
-        function myFunction(imgs) {
-          var expandImg = document.getElementById("expandedImg");
-          var imgText = document.getElementById("imgtext");
-          expandImg.src = imgs.src;
-          imgText.innerHTML = imgs.alt;
-          expandImg.parentElement.style.display = "block";
-        }
-        </script></body></html>
+    <script>
+    function myFunction(imgs) {
+      var expandImg = document.getElementById("expandedImg");
+      var imgText = document.getElementById("imgtext");
+      expandImg.src = imgs.src;
+      imgText.innerHTML = imgs.alt;
+      expandImg.parentElement.style.display = "block";
+    }
+    </script>
+
+    </body>
+    </html>
+
+    
