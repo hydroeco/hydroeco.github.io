@@ -47,97 +47,46 @@ background-color: #2da0e2;}
   <h4> Borehole datamap for the Soaproot field site.</h4>
   <div style="border: thick solid black" id="my-map"></div>
 
-
-
   <script>
   window.onload = function () {
     // setup basemaps
       var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-        maxZoom: 20,
+        maxZoom: 25,
         subdomains:['mt0','mt1','mt2','mt3']});
     var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',{
-        maxZoom: 20,
+        maxZoom: 25,
         subdomains:['mt0','mt1','mt2','mt3']});
     var basemaps = {"Google satellite":googleSat, "Google terrain":googleTerrain}
-
-    var wxIcon = L.icon({
-	    iconUrl: './wx.png',
-	    color: 'blue',
-	    iconSize:     [60, 60], // size of the icon
-	    iconAnchor:   [22, 30], // point of the icon which will correspond to marker's location
-	    popupAnchor:  [0, -30] // point from which the popup should open relative to the iconAnchor
-	});
 
 	var firefoxIcon = L.icon({
         iconUrl: 'http://joshuafrazier.info/images/firefox.svg',
         iconSize: [38, 95], // size of the icon
         });
 
-    var markerClusters = L.markerClusterGroup();
+    // var markerClusters = L.markerClusterGroup();
     $.getJSON("soap_holes.geojson", function(data) { 
         var categories = {},
           Type;
 
         var allPoints = L.geoJson(data, {
-          // onEachFeature: function (feature, layer) {
-          //   Type = feature.properties.marker_category;
-          //   if (typeof categories[Type] === "undefined") {
-          //     categories[Type] = [];
-          //   }
-          //   categories[Type].push(layer);
-          // }, 
-
           pointToLayer: function (feature, latlng) { 
-          	if (feature.properties.marker_category=="WS") {
-          		return L.marker(latlng, {icon: wxIcon});
-            } else {
+            {
             	return L.circleMarker(latlng, {radius: 8, opacity:1, fillOpacity:1.0, color:'black', fillColor: feature.properties.marker_color});
             }
           },
         });
 
 
-        var textPoints = L.geoJson(data, {
-          pointToLayer: function (feature, latlng) { 
-            return L.marker(latlng, {icon:L.divIcon({html:'<h5 style="color: #eee; opacity:0.01;">' + feature.properties.Location + '</h5>', className:'dummy'})})
-              // return L.circleMarker(latlng, {icon: L.divIcon({html:"China"},radius: 3, opacity:1, weight:1.0, fillOpacity:1.0, color:'black', fillColor:feature.properties.marker_color});
-            }
-          }).bindTooltip(function (layer) {
-              return layer.feature.properties.Location;})
-
-    
 
         var map = L.map('my-map').fitBounds(allPoints.getBounds());
-        var overlaysObj = {},
-          TypeName,
-          TypeArray,
-          TypeLG;
+  
 
-        for (TypeName in categories) {
-          TypeArray = categories[TypeName];
-          TypeLG = L.layerGroup(TypeArray);
-          TypeLG.TypeName = TypeName;
-          overlaysObj[TypeName] = TypeLG;
-        }
-
-      // Overlay layers (TMS)
-      // var lyr = L.tileLayer('./hillshade/{z}/{x}/{y}.png', {maxZoom: 20,tms: true, opacity: 1.0, attribution: ""});
-      // var overlaymaps = {"2017 LiDAR Hillshade": lyr}
-
-      // var higherOpacity = new L.Control.higherOpacity();
-      // map.addControl(higherOpacity);
-      // var lowerOpacity = new L.Control.lowerOpacity();
-      // map.addControl(lowerOpacity);
-      // var opacitySlider = new L.Control.opacitySlider();
-      // map.addControl(opacitySlider);
-      // higherOpacity.setOpacityLayer(overlaymaps);
-
-      L.control.layers(basemaps).addTo(map);
-      googleSat.addTo(map);
+      L.control.layers(basemaps,{collapsed:false}).addTo(map);
+      // googleSat.addTo(map);
       
-      var markers = L.markerClusterGroup();
-      markers.addLayer(allPoints);
-      map.addLayer(markers);
+      // var markers = L.markerClusterGroup();
+      // markers.addLayer(allPoints);
+      // map.addLayer(markers);
 
 
       // var htmlLegend = L.control.htmllegend({...});
