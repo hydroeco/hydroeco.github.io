@@ -81,7 +81,7 @@
       font-size: 15px;
     }
 
-    .nav-links { display: flex; gap: 8px; }
+    .nav-links { display: flex; align-items: center; gap: 8px; }
 
     .nav-links a {
       padding: 9px 13px;
@@ -96,6 +96,38 @@
       color: white;
       background: rgba(255,255,255,.10);
       outline: none;
+    }
+
+    .unit-toggle {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 999px;
+      background: rgba(8,32,26,.24);
+    }
+
+    .unit-toggle button {
+      min-width: 54px;
+      padding: 7px 11px;
+      border: 0;
+      border-radius: 999px;
+      color: rgba(255,255,255,.72);
+      background: transparent;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .unit-toggle button.active {
+      color: var(--pine-950);
+      background: white;
+    }
+
+    .unit-toggle button:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 2px;
     }
 
     .hero {
@@ -495,6 +527,10 @@
         <a class="brand" href="../index.html"><span class="brand-mark">RV</span><span>HydroEco</span></a>
         <div class="nav-links">
           <a href="#sources">Data sources</a>
+          <div class="unit-toggle" id="unit-toggle" role="group" aria-label="Measurement units">
+            <button class="active" type="button" data-value="us" aria-pressed="true">US</button>
+            <button type="button" data-value="metric" aria-pressed="false">Metric</button>
+          </div>
         </div>
       </nav>
       <section class="hero">
@@ -634,7 +670,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const value = (number, unit, digits = 0) => number == null ? '—' : `${Number(number).toFixed(digits)}${unit}`;
     const sourceColors = {
       ambient: '#2f6253',
       'ambient-partial': '#789b82',
@@ -643,23 +678,74 @@
       prism: '#e3a83b',
       missing: '#d9ded7'
     };
+    const measurementSystems = {
+      us: {
+        temperature: { unit: '°F', convert: (value) => value },
+        precipitation: { unit: ' in', convert: (value) => value },
+        speed: { unit: ' mph', convert: (value) => value },
+        pressure: { unit: ' inHg', convert: (value) => value },
+        humidity: { unit: '%', convert: (value) => value },
+        solar: { unit: ' W/m²', convert: (value) => value }
+      },
+      metric: {
+        temperature: { unit: '°C', convert: (value) => (value - 32) * 5 / 9 },
+        precipitation: { unit: ' mm', convert: (value) => value * 25.4 },
+        speed: { unit: ' m/s', convert: (value) => value * 0.44704 },
+        pressure: { unit: ' hPa', convert: (value) => value * 33.8639 },
+        humidity: { unit: '%', convert: (value) => value },
+        solar: { unit: ' W/m²', convert: (value) => value }
+      }
+    };
     const recentMetrics = {
-      temp_f: { label: 'Temperature', unit: '°F', color: '#c66a3c', type: 'line', digits: 1 },
-      rain_in: { label: 'Rain', unit: ' in', color: '#2d7d9a', type: 'bar', digits: 3 },
-      humidity_pct: { label: 'Humidity', unit: '%', color: '#527f8e', type: 'line', digits: 0 },
-      wind_mph: { label: 'Wind', unit: ' mph', color: '#789b82', type: 'line', digits: 1 }
+      temp_f: { label: 'Temperature', dimension: 'temperature', color: '#c66a3c', type: 'line', digits: { us: 1, metric: 1 } },
+      rain_in: { label: 'Rain', dimension: 'precipitation', color: '#2d7d9a', type: 'bar', digits: { us: 3, metric: 2 } },
+      humidity_pct: { label: 'Humidity', dimension: 'humidity', color: '#527f8e', type: 'line', digits: { us: 0, metric: 0 } },
+      wind_mph: { label: 'Wind', dimension: 'speed', color: '#789b82', type: 'line', digits: { us: 1, metric: 1 } }
     };
     const historyMetrics = {
-      wy_cumulative_in: { label: 'Cumulative water-year precipitation', unit: ' in', color: '#2d7d9a', type: 'line', digits: 2, beginAtZero: true },
-      precip_in: { label: 'Daily precipitation', unit: ' in', color: '#2d7d9a', type: 'bar', digits: 2 },
-      temp_mean_f: { label: 'Daily mean temperature', unit: '°F', color: '#c66a3c', type: 'line', digits: 1 }
+      wy_cumulative_in: { label: 'Cumulative water-year precipitation', dimension: 'precipitation', color: '#2d7d9a', type: 'line', digits: { us: 2, metric: 1 }, beginAtZero: true, cumulative: true },
+      precip_in: { label: 'Daily precipitation', dimension: 'precipitation', color: '#2d7d9a', type: 'bar', digits: { us: 2, metric: 1 } },
+      temp_mean_f: { label: 'Daily mean temperature', dimension: 'temperature', color: '#c66a3c', type: 'line', digits: { us: 1, metric: 1 } }
     };
 
     let weatherData;
     let recentChart;
     let historyChart;
+    let unitSystem = 'us';
+    try {
+      if (localStorage.getItem('rv-weather-units') === 'metric') unitSystem = 'metric';
+    } catch (error) {
+      console.info('Unit preference storage is unavailable.', error);
+    }
     const recentState = { metric: 'temp_f', range: '48h' };
     const historyState = { metric: 'wy_cumulative_in', range: 'wy' };
+
+    function convertMeasurement(number, dimension) {
+      if (number == null || Number.isNaN(Number(number))) return null;
+      return measurementSystems[unitSystem][dimension].convert(Number(number));
+    }
+
+    function formatMeasurement(number, dimension, digits) {
+      const converted = convertMeasurement(number, dimension);
+      if (converted == null) return '—';
+      return `${converted.toFixed(digits[unitSystem])}${measurementSystems[unitSystem][dimension].unit}`;
+    }
+
+    function displayMetric(metric) {
+      return {
+        ...metric,
+        unit: measurementSystems[unitSystem][metric.dimension].unit,
+        digits: metric.digits[unitSystem]
+      };
+    }
+
+    function syncUnitToggle() {
+      $('unit-toggle').querySelectorAll('button[data-value]').forEach((button) => {
+        const active = button.dataset.value === unitSystem;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
 
     function relativeAge(timestamp) {
       const minutes = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 60000);
@@ -723,7 +809,7 @@
               label: (context) => `${metric.label}: ${Number(context.raw).toFixed(metric.digits)}${metric.unit}`,
               footer: historical ? (items) => {
                 const source = points[items[0].dataIndex]?.source || '';
-                const prefix = metric === historyMetrics.wy_cumulative_in ? 'Daily input source' : 'Source';
+                const prefix = metric.cumulative ? 'Daily input source' : 'Source';
                 return source ? `${prefix}: ${source.replace('-', ' ')}` : '';
               } : undefined
             }
@@ -735,16 +821,16 @@
     function renderCurrent(data) {
       const current = data.current;
       setStatus(current.timestamp);
-      $('temp').textContent = value(current.temp_f, '°', 0);
-      $('feels').textContent = `Apparent temperature ${value(current.feels_like_f, '°F', 0)}`;
-      $('humidity').textContent = value(current.humidity_pct, '%', 0);
-      $('dewpoint').textContent = `Dew-point temperature ${value(current.dew_point_f, '°F', 0)}`;
-      $('wind').textContent = value(current.wind_mph, ' mph', 1);
-      $('gust').textContent = `${cardinal(current.wind_direction_deg)} · peak gust ${value(current.gust_mph, ' mph', 1)}`;
-      $('rain').textContent = value(current.rain_today_in, ' in', 2);
-      $('event-rain').textContent = `Storm/event total ${value(current.rain_event_in, ' in', 2)}`;
-      $('pressure').textContent = value(current.pressure_inhg, ' in', 2);
-      $('solar').textContent = `Solar radiation ${value(current.solar_wm2, ' W/m²', 0)}`;
+      $('temp').textContent = formatMeasurement(current.temp_f, 'temperature', { us: 0, metric: 1 });
+      $('feels').textContent = `Apparent temperature ${formatMeasurement(current.feels_like_f, 'temperature', { us: 0, metric: 1 })}`;
+      $('humidity').textContent = formatMeasurement(current.humidity_pct, 'humidity', { us: 0, metric: 0 });
+      $('dewpoint').textContent = `Dew-point temperature ${formatMeasurement(current.dew_point_f, 'temperature', { us: 0, metric: 1 })}`;
+      $('wind').textContent = formatMeasurement(current.wind_mph, 'speed', { us: 1, metric: 1 });
+      $('gust').textContent = `${cardinal(current.wind_direction_deg)} · peak gust ${formatMeasurement(current.gust_mph, 'speed', { us: 1, metric: 1 })}`;
+      $('rain').textContent = formatMeasurement(current.rain_today_in, 'precipitation', { us: 2, metric: 1 });
+      $('event-rain').textContent = `Storm/event total ${formatMeasurement(current.rain_event_in, 'precipitation', { us: 2, metric: 1 })}`;
+      $('pressure').textContent = formatMeasurement(current.pressure_inhg, 'pressure', { us: 2, metric: 0 });
+      $('solar').textContent = `Solar radiation ${formatMeasurement(current.solar_wm2, 'solar', { us: 0, metric: 0 })}`;
       $('conditions').classList.remove('loading');
 
       const latestTime = new Date(current.timestamp).getTime();
@@ -761,15 +847,22 @@
         .filter((point) => point.date >= waterYearDate && point.date <= today)
         .reduce((sum, point) => sum + (Number(point.precip_in) || 0), 0);
 
-      $('wy-rain').textContent = value(waterYearRain, ' in', 1);
-      $('rain-24h').textContent = value(rain24, ' in', 2);
-      $('today-range').textContent = todayDaily?.temp_min_f == null ? '—' : `${Math.round(todayDaily.temp_min_f)}° / ${Math.round(todayDaily.temp_max_f)}°`;
-      $('peak-gust').textContent = value(peakGust, ' mph', 1);
+      $('wy-rain').textContent = formatMeasurement(waterYearRain, 'precipitation', { us: 1, metric: 0 });
+      $('rain-24h').textContent = formatMeasurement(rain24, 'precipitation', { us: 2, metric: 1 });
+      if (todayDaily?.temp_min_f == null) {
+        $('today-range').textContent = '—';
+      } else {
+        const minimum = convertMeasurement(todayDaily.temp_min_f, 'temperature');
+        const maximum = convertMeasurement(todayDaily.temp_max_f, 'temperature');
+        const temperatureUnit = measurementSystems[unitSystem].temperature.unit;
+        $('today-range').textContent = `${minimum.toFixed(unitSystem === 'metric' ? 1 : 0)} / ${maximum.toFixed(unitSystem === 'metric' ? 1 : 0)}${temperatureUnit}`;
+      }
+      $('peak-gust').textContent = formatMeasurement(peakGust, 'speed', { us: 1, metric: 1 });
     }
 
     function renderRecentChart() {
       if (!weatherData || typeof Chart === 'undefined') return;
-      const metric = recentMetrics[recentState.metric];
+      const metric = displayMetric(recentMetrics[recentState.metric]);
       const latest = new Date(weatherData.current.timestamp).getTime();
       const cutoff = latest - (recentState.range === '48h' ? 48 : 168) * 60 * 60 * 1000;
       const points = weatherData.live_7d.filter((point) => new Date(point.t).getTime() >= cutoff && point[recentState.metric] != null);
@@ -781,7 +874,7 @@
         data: {
           labels: points.map((point) => new Date(point.t).toLocaleString([], { weekday: 'short', hour: 'numeric' })),
           datasets: [{
-            data: points.map((point) => point[recentState.metric]),
+            data: points.map((point) => convertMeasurement(point[recentState.metric], metric.dimension)),
             borderColor: metric.color,
             backgroundColor: metric.type === 'bar' ? `${metric.color}aa` : `${metric.color}22`,
             borderWidth: 2,
@@ -841,7 +934,7 @@
 
     function renderHistoryChart() {
       if (!weatherData || typeof Chart === 'undefined') return;
-      const metric = historyMetrics[historyState.metric];
+      const metric = displayMetric(historyMetrics[historyState.metric]);
       let points = addWaterYearCumulative(weatherData.daily_history)
         .filter((point) => point.date >= historyRangeStart() && point[historyState.metric] != null);
       if (historyState.range === 'all') points = aggregateMonthly(points, historyState.metric);
@@ -854,7 +947,7 @@
         data: {
           labels: points.map((point) => point.date),
           datasets: [{
-            data: points.map((point) => point[historyState.metric]),
+            data: points.map((point) => convertMeasurement(point[historyState.metric], metric.dimension)),
             borderColor: metric.type === 'line' ? metric.color : colors,
             backgroundColor: metric.type === 'bar' ? colors : `${metric.color}1f`,
             borderWidth: metric.type === 'bar' ? 0 : 2,
@@ -878,6 +971,23 @@
     activateGroup('recent-range', recentState, 'range', renderRecentChart);
     activateGroup('history-metric', historyState, 'metric', renderHistoryChart);
     activateGroup('history-range', historyState, 'range', renderHistoryChart);
+    $('unit-toggle').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-value]');
+      if (!button || button.dataset.value === unitSystem) return;
+      unitSystem = button.dataset.value;
+      try {
+        localStorage.setItem('rv-weather-units', unitSystem);
+      } catch (error) {
+        console.info('Unit preference could not be saved.', error);
+      }
+      syncUnitToggle();
+      if (weatherData) {
+        renderCurrent(weatherData);
+        renderRecentChart();
+        renderHistoryChart();
+      }
+    });
+    syncUnitToggle();
 
     fetch('./weather_dashboard.json', { cache: 'no-store' })
       .then((response) => {
