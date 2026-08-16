@@ -7,10 +7,7 @@ cd "$repo"
 git add -A -- \
   rancho_venada/rv_ambient.csv \
   rancho_venada/rv_ambient_[0-9][0-9][0-9][0-9].csv \
-  rancho_venada/rvws.csv \
-  rancho_venada/weather_48.png \
-  rancho_venada/weather_wy.png \
-  rancho_venada/wx_dash.html
+  rancho_venada/weather_dashboard.json
 
 if git diff --cached --quiet; then
   echo "No weather changes to publish"

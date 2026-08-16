@@ -11,3 +11,8 @@ files retain the same columns as the original combined dataset.
 
 To reconstruct the full history, concatenate the annual files and the active
 file, parse the `date` column, remove duplicate timestamps, and sort by date.
+
+`weather_dashboard.json` is generated hourly for the public dashboard. It
+contains privacy-safe current Ambient readings, a seven-day chart series, and a
+daily record that prefers Ambient, then historical Dendra, then PRISM
+precipitation where station coverage is incomplete.

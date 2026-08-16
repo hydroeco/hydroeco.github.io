@@ -1,100 +1,891 @@
-
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-* {
-box-sizing: border-box;
-}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Live and historical weather conditions at Rancho Venada, blending Ambient Weather, Dendra station, and PRISM records.">
+  <meta name="theme-color" content="#16372f">
+  <title>Rancho Venada Weather</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --pine-950: #102a24;
+      --pine-900: #16372f;
+      --pine-800: #214a3f;
+      --pine-700: #2f6253;
+      --sage-500: #789b82;
+      --sage-200: #cddbcf;
+      --cream: #f4f0e6;
+      --paper: #fffdf7;
+      --ink: #1b2824;
+      --muted: #65716b;
+      --line: #d9ded7;
+      --sky: #93c5d5;
+      --rain: #2d7d9a;
+      --sun: #e3a83b;
+      --ember: #c66a3c;
+      --shadow: 0 24px 60px rgba(21, 52, 44, .12);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
 
-body {
-margin: 0;
-font-family: Arial;
-}
+    * { box-sizing: border-box; }
 
-/* The grid: Four equal columns that floats next to each other */
-.column {
-float: left;
-width: 25%;
-padding: 10px;
-}
+    html { scroll-behavior: smooth; }
 
-/* Style the images inside the grid */
-.column img {
-opacity: 0.8; 
-cursor: pointer; 
-}
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 0%, rgba(147, 197, 213, .20), transparent 35rem),
+        var(--cream);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
 
-.column img:hover {
-opacity: 1;
-}
+    a { color: inherit; }
 
-/* Clear floats after the columns */
-.row:after {
-content: "";
-display: table;
-clear: both;
-}
+    .site-shell { min-height: 100vh; }
 
-/* The expanding image container */
-.container {
-position: relative;
-display: none;
-}
+    .topbar {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 24px 0;
+      color: white;
+    }
 
-/* Expanding image text */
-#imgtext {
-position: absolute;
-bottom: 15px;
-left: 15px;
-color: white;
-font-size: 20px;
-}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 750;
+      letter-spacing: -.02em;
+    }
 
-/* Closable button inside the expanded image */
-.closebtn {
-position: absolute;
-top: 10px;
-right: 15px;
-color: white;
-font-size: 35px;
-cursor: pointer;
-}
-</style>
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 50%;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 15px;
+    }
+
+    .nav-links { display: flex; gap: 8px; }
+
+    .nav-links a {
+      padding: 9px 13px;
+      border-radius: 999px;
+      color: rgba(255,255,255,.78);
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      color: white;
+      background: rgba(255,255,255,.10);
+      outline: none;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      margin-top: -90px;
+      padding: 148px 0 142px;
+      color: white;
+      background:
+        repeating-radial-gradient(ellipse at 88% 115%, transparent 0 27px, rgba(255,255,255,.055) 28px 29px),
+        linear-gradient(125deg, var(--pine-950) 0%, var(--pine-800) 64%, #315f50 100%);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -8%;
+      bottom: -170px;
+      width: 620px;
+      height: 410px;
+      border-radius: 50%;
+      background: rgba(147, 197, 213, .10);
+      filter: blur(1px);
+      transform: rotate(-12deg);
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(260px, .6fr);
+      gap: 70px;
+      align-items: end;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: #c7dfd2;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 18px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 500;
+      letter-spacing: -.055em;
+      line-height: .96;
+    }
+
+    .hero-copy {
+      max-width: 640px;
+      margin-bottom: 0;
+      color: rgba(255,255,255,.72);
+      font-size: clamp(16px, 2vw, 19px);
+    }
+
+    .live-panel {
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: var(--radius-lg);
+      background: rgba(8, 32, 26, .34);
+      backdrop-filter: blur(14px);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      font-weight: 750;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #8ed09a;
+      box-shadow: 0 0 0 6px rgba(142,208,154,.12);
+    }
+
+    .status-dot.stale { background: var(--sun); box-shadow: 0 0 0 6px rgba(227,168,59,.14); }
+    .status-dot.offline { background: #df765f; box-shadow: 0 0 0 6px rgba(223,118,95,.14); }
+
+    .updated-label {
+      margin: 0;
+      color: rgba(255,255,255,.65);
+      font-size: 14px;
+    }
+
+    .layout {
+      position: relative;
+      z-index: 2;
+      width: min(1180px, calc(100% - 40px));
+      margin: -74px auto 0;
+      padding-bottom: 80px;
+    }
+
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: 1.3fr repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 26px;
+    }
+
+    .condition-card {
+      min-height: 156px;
+      padding: 20px;
+      border: 1px solid rgba(19,54,45,.08);
+      border-radius: var(--radius-lg);
+      background: var(--paper);
+      box-shadow: 0 12px 36px rgba(23, 55, 47, .08);
+    }
+
+    .condition-card.primary {
+      color: white;
+      background: var(--pine-900);
+    }
+
+    .metric-label {
+      display: block;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .primary .metric-label { color: #b9d2c5; }
+
+    .metric-value {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(30px, 4vw, 47px);
+      letter-spacing: -.04em;
+      line-height: 1;
+    }
+
+    .metric-note {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .primary .metric-note { color: rgba(255,255,255,.62); }
+
+    .panel {
+      margin-top: 18px;
+      padding: clamp(22px, 4vw, 34px);
+      border: 1px solid rgba(19,54,45,.09);
+      border-radius: var(--radius-xl);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .panel-heading h2 {
+      margin-bottom: 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 500;
+      letter-spacing: -.035em;
+    }
+
+    .panel-heading p { margin: 0; color: var(--muted); }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      overflow: hidden;
+      margin: 18px 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--line);
+    }
+
+    .summary-item { padding: 18px 20px; background: rgba(255,253,247,.94); }
+    .summary-item span { display: block; color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+    .summary-item strong { display: block; margin-top: 7px; font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 500; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .segmented {
+      display: inline-flex;
+      gap: 3px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #efeee8;
+    }
+
+    .segmented button {
+      min-height: 34px;
+      padding: 7px 12px;
+      border: 0;
+      border-radius: 999px;
+      color: var(--muted);
+      background: transparent;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .segmented button:hover { color: var(--ink); }
+    .segmented button.active,
+    .segmented button[aria-pressed="true"] { color: white; background: var(--pine-800); }
+    .segmented button:focus-visible { outline: 3px solid rgba(45,125,154,.28); outline-offset: 2px; }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 330px;
+      padding: 14px 10px 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, #fffefa, #f8f6ee);
+    }
+
+    .chart-wrap canvas { width: 100% !important; height: 320px !important; }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 30px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .chart-empty.visible { display: grid; }
+
+    .history-panel { margin-top: 18px; }
+
+    .download-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .download-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--pine-800);
+      background: white;
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .download-link:hover { border-color: var(--pine-700); background: #f5f8f5; }
+
+    details.method {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    details.method summary { color: var(--pine-800); font-weight: 750; cursor: pointer; }
+    details.method ul { margin-bottom: 0; padding-left: 20px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .source-card {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #faf8f1;
+    }
+
+    .source-kicker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .source-swatch { width: 9px; height: 9px; border-radius: 2px; }
+    .ambient { background: var(--pine-700); }
+    .dendra { background: var(--sky); }
+    .prism { background: var(--sun); }
+
+    .source-card strong { display: block; margin-bottom: 4px; font-size: 17px; }
+    .source-card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .loading { opacity: .55; }
+
+    .error-banner {
+      display: none;
+      margin-bottom: 18px;
+      padding: 14px 18px;
+      border: 1px solid #df9d8d;
+      border-radius: var(--radius-md);
+      color: #702c20;
+      background: #fff0eb;
+    }
+
+    .error-banner.visible { display: block; }
+
+    footer {
+      padding: 34px 20px 44px;
+      color: #d5e1db;
+      background: var(--pine-950);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    footer a { color: white; }
+
+    @media (max-width: 980px) {
+      .hero-inner { grid-template-columns: 1fr; gap: 34px; }
+      .live-panel { max-width: 420px; }
+      .conditions-grid { grid-template-columns: repeat(2, 1fr); }
+      .condition-card.primary { grid-column: span 2; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 680px) {
+      .topbar { width: min(100% - 28px, 1180px); }
+      .nav-links a:first-child { display: none; }
+      .hero { padding-top: 132px; padding-bottom: 116px; }
+      .hero-inner, .layout { width: min(100% - 28px, 1180px); }
+      .layout { margin-top: -58px; }
+      .conditions-grid { grid-template-columns: 1fr 1fr; }
+      .condition-card { min-height: 142px; padding: 17px; }
+      .source-grid { grid-template-columns: 1fr; }
+      .panel-heading { align-items: flex-start; flex-direction: column; }
+      .controls { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (max-width: 420px) {
+      .conditions-grid { grid-template-columns: 1fr; }
+      .condition-card.primary { grid-column: auto; }
+      .nav-links a { padding-inline: 8px; }
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
 </head>
 <body>
+  <div class="site-shell">
+    <header>
+      <nav class="topbar" aria-label="Rancho Venada navigation">
+        <a class="brand" href="../index.html"><span class="brand-mark">RV</span><span>HydroEco</span></a>
+        <div class="nav-links">
+          <a href="./mymap.html">Field map</a>
+          <a href="./wells_piezos_dash.html">Water levels</a>
+          <a href="#sources">Data sources</a>
+        </div>
+      </nav>
+      <section class="hero">
+        <div class="hero-inner">
+          <div>
+            <p class="eyebrow">Live field weather</p>
+            <h1>Rancho Venada</h1>
+            <p class="hero-copy">Current foothill conditions, backed by a continuous station and gridded precipitation record stretching to 1981.</p>
+          </div>
+          <aside class="live-panel" aria-live="polite">
+            <div class="status-row"><span class="status-dot" id="status-dot"></span><span id="status-text">Loading station feed</span></div>
+            <p class="updated-label" id="updated-label">Reading the latest Ambient observation…</p>
+          </aside>
+        </div>
+      </section>
+    </header>
 
-<h1 align="center">Rancho Venada Weather Station Dashboard</h1><h2 align='center'>Return to <a target='_blank' href='./wells_piezos_dash.html'>borings/piezo dashboard</a> or <a target='_blank' href='./mymap.html'>map</a>.</h2>Current as of 07/16/2025, 11:00:00<br>Download <a href="https://hydroeco.github.io/rancho_venada/rvws.csv" download>weather</a> or <a href="https://hydroeco.github.io/rancho_venada/sap.csv" download>sapflow</a><br><a target="_blank" href="https://ambientweather.net/dashboard/9e909d58d0c963aadbfcdcaabf8f3975">Link</a> to ambient weather station<h2 align='left'> Current water year precip: 333.5 in (8470.80 mm)</h2><h2 align='left'> Precip last 24 hours: 0.0 in (0.00 mm)</h2><h2 align='left'> Current temperature: 77.6 F (25.3 C)</h2>  
-<!-- The columns -->
-<div class="row">
-  <div class="column">
-    <br>Water year</br>
-    <img src="./weather_wy.png" alt="WY" style="width:100%" onclick="myFunction(this);">
+    <main class="layout">
+      <div class="error-banner" id="error-banner" role="alert">Live data could not be loaded. The historical downloads remain available below.</div>
+
+      <section class="conditions-grid loading" id="conditions" aria-label="Current conditions">
+        <article class="condition-card primary">
+          <span class="metric-label">Air temperature</span>
+          <span class="metric-value" id="temp">—</span>
+          <span class="metric-note" id="feels">Ambient station</span>
+        </article>
+        <article class="condition-card">
+          <span class="metric-label">Humidity</span>
+          <span class="metric-value" id="humidity">—</span>
+          <span class="metric-note" id="dewpoint">Dew point —</span>
+        </article>
+        <article class="condition-card">
+          <span class="metric-label">Wind</span>
+          <span class="metric-value" id="wind">—</span>
+          <span class="metric-note" id="gust">Gust —</span>
+        </article>
+        <article class="condition-card">
+          <span class="metric-label">Rain today</span>
+          <span class="metric-value" id="rain">—</span>
+          <span class="metric-note" id="event-rain">Current event —</span>
+        </article>
+        <article class="condition-card">
+          <span class="metric-label">Barometer</span>
+          <span class="metric-value" id="pressure">—</span>
+          <span class="metric-note" id="solar">Solar radiation —</span>
+        </article>
+      </section>
+
+      <section class="summary-grid" aria-label="Weather summary">
+        <div class="summary-item"><span>Water year rain</span><strong id="wy-rain">—</strong></div>
+        <div class="summary-item"><span>Last 24 hours</span><strong id="rain-24h">—</strong></div>
+        <div class="summary-item"><span>Today's range</span><strong id="today-range">—</strong></div>
+        <div class="summary-item"><span>Peak gust · 24h</span><strong id="peak-gust">—</strong></div>
+      </section>
+
+      <section class="panel" aria-labelledby="recent-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" style="color:var(--pine-700)">Seven-day station window</p>
+            <h2 id="recent-heading">Weather in motion</h2>
+            <p>Temperature, rain, humidity, and wind from the live Ambient feed.</p>
+          </div>
+          <div class="controls" aria-label="Recent chart controls">
+            <div class="segmented" id="recent-metric">
+              <button class="active" type="button" data-value="temp_f" aria-pressed="true">Temperature</button>
+              <button type="button" data-value="rain_in" aria-pressed="false">Rain</button>
+              <button type="button" data-value="humidity_pct" aria-pressed="false">Humidity</button>
+              <button type="button" data-value="wind_mph" aria-pressed="false">Wind</button>
+            </div>
+            <div class="segmented" id="recent-range">
+              <button class="active" type="button" data-value="48h" aria-pressed="true">48 hours</button>
+              <button type="button" data-value="7d" aria-pressed="false">7 days</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="recent-chart" role="img" aria-label="Recent weather observations"></canvas>
+          <div class="chart-empty" id="recent-empty">No recent observations are available for this metric.</div>
+        </div>
+      </section>
+
+      <section class="panel history-panel" aria-labelledby="history-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" style="color:var(--pine-700)">Merged daily record</p>
+            <h2 id="history-heading">Weather through time</h2>
+            <p>Observed station data where available, with PRISM precipitation filling earlier gaps.</p>
+          </div>
+          <div class="controls" aria-label="Historical chart controls">
+            <div class="segmented" id="history-metric">
+              <button class="active" type="button" data-value="precip_in" aria-pressed="true">Precipitation</button>
+              <button type="button" data-value="temp_mean_f" aria-pressed="false">Temperature</button>
+            </div>
+            <div class="segmented" id="history-range">
+              <button class="active" type="button" data-value="wy" aria-pressed="true">Water year</button>
+              <button type="button" data-value="5y" aria-pressed="false">5 years</button>
+              <button type="button" data-value="all" aria-pressed="false">All</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="history-chart" role="img" aria-label="Historical daily weather record"></canvas>
+          <div class="chart-empty" id="history-empty">This source does not include the selected metric for that period.</div>
+        </div>
+      </section>
+
+      <section class="panel" id="sources" aria-labelledby="sources-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow" style="color:var(--pine-700)">Coverage & provenance</p>
+            <h2 id="sources-heading">One record, three sources</h2>
+            <p>Station observations take priority; PRISM fills precipitation gaps.</p>
+          </div>
+        </div>
+        <div class="source-grid">
+          <article class="source-card"><div class="source-kicker"><span class="source-swatch ambient"></span>Ambient</div><strong id="ambient-range">Loading…</strong><p>Live five-minute station observations.</p></article>
+          <article class="source-card"><div class="source-kicker"><span class="source-swatch dendra"></span>Dendra</div><strong id="dendra-range">Loading…</strong><p>Historical on-site station backfill.</p></article>
+          <article class="source-card"><div class="source-kicker"><span class="source-swatch prism"></span>PRISM</div><strong id="prism-range">Loading…</strong><p>Gridded daily precipitation gap-fill.</p></article>
+        </div>
+        <div class="download-row" aria-label="Weather data downloads">
+          <a class="download-link" href="./rv_ambient.csv" download>Current Ambient CSV</a>
+          <a class="download-link" href="./rv_ambient_2025.csv" download>2025 Ambient CSV</a>
+          <a class="download-link" href="./rvws.csv" download>Historical Dendra CSV</a>
+          <a class="download-link" href="./prism.csv" download>PRISM precipitation CSV</a>
+        </div>
+        <details class="method">
+          <summary>How this record is assembled</summary>
+          <ul id="method-notes"><li>Loading merge notes…</li></ul>
+        </details>
+      </section>
+    </main>
+
+    <footer>Rancho Venada field data · <a href="./mymap.html">Map</a> · <a href="./wells_piezos_dash.html">Water levels</a></footer>
   </div>
-  <div class="column">
-      <br>Most recent 48 hours</br>
-    <img src="./weather_48.png" alt="48" style="width:100%" onclick="myFunction(this);">
-  </div>
-</div>
 
-<div class="container">
-  <span onclick="this.parentElement.style.display='none'" class="closebtn">&times;</span>
-  <img id="expandedImg" style="width:90%">
-  <div id="imgtext"></div>
-</div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const value = (number, unit, digits = 0) => number == null ? '—' : `${Number(number).toFixed(digits)}${unit}`;
+    const sourceColors = {
+      ambient: '#2f6253',
+      'ambient-partial': '#789b82',
+      dendra: '#78adbe',
+      'dendra-partial': '#b3d0d9',
+      prism: '#e3a83b',
+      missing: '#d9ded7'
+    };
+    const recentMetrics = {
+      temp_f: { label: 'Temperature', unit: '°F', color: '#c66a3c', type: 'line', digits: 1 },
+      rain_in: { label: 'Rain', unit: ' in', color: '#2d7d9a', type: 'bar', digits: 3 },
+      humidity_pct: { label: 'Humidity', unit: '%', color: '#527f8e', type: 'line', digits: 0 },
+      wind_mph: { label: 'Wind', unit: ' mph', color: '#789b82', type: 'line', digits: 1 }
+    };
+    const historyMetrics = {
+      precip_in: { label: 'Daily precipitation', unit: ' in', color: '#2d7d9a', type: 'bar', digits: 2 },
+      temp_mean_f: { label: 'Daily mean temperature', unit: '°F', color: '#c66a3c', type: 'line', digits: 1 }
+    };
 
-<script>
-function myFunction(imgs) {
-  var expandImg = document.getElementById("expandedImg");
-  var imgText = document.getElementById("imgtext");
-  expandImg.src = imgs.src;
-  imgText.innerHTML = imgs.alt;
-  expandImg.parentElement.style.display = "block";
-}
-</script>
+    let weatherData;
+    let recentChart;
+    let historyChart;
+    const recentState = { metric: 'temp_f', range: '48h' };
+    const historyState = { metric: 'precip_in', range: 'wy' };
 
+    function relativeAge(timestamp) {
+      const minutes = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 60000);
+      if (minutes < 2) return 'just now';
+      if (minutes < 60) return `${Math.round(minutes)} minutes ago`;
+      if (minutes < 1440) return `${Math.round(minutes / 60)} hours ago`;
+      return `${Math.round(minutes / 1440)} days ago`;
+    }
+
+    function setStatus(timestamp) {
+      const ageMinutes = (Date.now() - new Date(timestamp).getTime()) / 60000;
+      $('status-dot').className = `status-dot ${ageMinutes > 360 ? 'offline' : ageMinutes > 75 ? 'stale' : ''}`;
+      $('status-text').textContent = ageMinutes > 360 ? 'Station feed delayed' : ageMinutes > 75 ? 'Station feed behind' : 'Ambient station live';
+      $('updated-label').textContent = `Latest observation ${relativeAge(timestamp)} · ${new Date(timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`;
+    }
+
+    function cardinal(degrees) {
+      if (degrees == null) return '';
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return directions[Math.round(Number(degrees) / 45) % 8];
+    }
+
+    function activateGroup(groupId, state, key, render) {
+      $(groupId).addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-value]');
+        if (!button) return;
+        state[key] = button.dataset.value;
+        $(groupId).querySelectorAll('button').forEach((item) => {
+          const active = item === button;
+          item.classList.toggle('active', active);
+          item.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        render();
+      });
+    }
+
+    function chartOptions(metric, points, historical = false) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 280 },
+        interaction: { intersect: false, mode: 'index' },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: '#65716b', maxTicksLimit: historical ? 10 : 8, maxRotation: 0 }
+          },
+          y: {
+            beginAtZero: metric.type === 'bar',
+            grid: { color: 'rgba(47,98,83,.09)' },
+            ticks: { color: '#65716b', callback: (tick) => `${tick}${metric.unit}` }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#102a24',
+            padding: 12,
+            cornerRadius: 10,
+            callbacks: {
+              label: (context) => `${metric.label}: ${Number(context.raw).toFixed(metric.digits)}${metric.unit}`,
+              footer: historical ? (items) => {
+                const source = points[items[0].dataIndex]?.source || '';
+                return source ? `Source: ${source.replace('-', ' ')}` : '';
+              } : undefined
+            }
+          }
+        }
+      };
+    }
+
+    function renderCurrent(data) {
+      const current = data.current;
+      setStatus(current.timestamp);
+      $('temp').textContent = value(current.temp_f, '°', 0);
+      $('feels').textContent = `Feels like ${value(current.feels_like_f, '°F', 0)}`;
+      $('humidity').textContent = value(current.humidity_pct, '%', 0);
+      $('dewpoint').textContent = `Dew point ${value(current.dew_point_f, '°F', 0)}`;
+      $('wind').textContent = value(current.wind_mph, ' mph', 1);
+      $('gust').textContent = `${cardinal(current.wind_direction_deg)} · gust ${value(current.gust_mph, ' mph', 1)}`;
+      $('rain').textContent = value(current.rain_today_in, ' in', 2);
+      $('event-rain').textContent = `Current event ${value(current.rain_event_in, ' in', 2)}`;
+      $('pressure').textContent = value(current.pressure_inhg, ' in', 2);
+      $('solar').textContent = `Solar radiation ${value(current.solar_wm2, ' W/m²', 0)}`;
+      $('conditions').classList.remove('loading');
+
+      const latestTime = new Date(current.timestamp).getTime();
+      const dayAgo = latestTime - 24 * 60 * 60 * 1000;
+      const recent24 = data.live_7d.filter((point) => new Date(point.t).getTime() >= dayAgo);
+      const rain24 = recent24.reduce((sum, point) => sum + (Number(point.rain_in) || 0), 0);
+      const peakGust = recent24.length ? Math.max(...recent24.map((point) => Number(point.gust_mph) || 0)) : null;
+      const today = current.timestamp.slice(0, 10);
+      const todayDaily = data.daily_history.find((point) => point.date === today);
+      const currentDate = new Date(`${today}T12:00:00`);
+      const waterYearStart = new Date(currentDate.getFullYear() - (currentDate.getMonth() < 9 ? 1 : 0), 9, 1);
+      const waterYearDate = `${waterYearStart.getFullYear()}-10-01`;
+      const waterYearRain = data.daily_history
+        .filter((point) => point.date >= waterYearDate && point.date <= today)
+        .reduce((sum, point) => sum + (Number(point.precip_in) || 0), 0);
+
+      $('wy-rain').textContent = value(waterYearRain, ' in', 1);
+      $('rain-24h').textContent = value(rain24, ' in', 2);
+      $('today-range').textContent = todayDaily?.temp_min_f == null ? '—' : `${Math.round(todayDaily.temp_min_f)}° / ${Math.round(todayDaily.temp_max_f)}°`;
+      $('peak-gust').textContent = value(peakGust, ' mph', 1);
+    }
+
+    function renderRecentChart() {
+      if (!weatherData || typeof Chart === 'undefined') return;
+      const metric = recentMetrics[recentState.metric];
+      const latest = new Date(weatherData.current.timestamp).getTime();
+      const cutoff = latest - (recentState.range === '48h' ? 48 : 168) * 60 * 60 * 1000;
+      const points = weatherData.live_7d.filter((point) => new Date(point.t).getTime() >= cutoff && point[recentState.metric] != null);
+      $('recent-empty').classList.toggle('visible', points.length === 0);
+      if (recentChart) recentChart.destroy();
+      if (!points.length) return;
+      recentChart = new Chart($('recent-chart'), {
+        type: metric.type,
+        data: {
+          labels: points.map((point) => new Date(point.t).toLocaleString([], { weekday: 'short', hour: 'numeric' })),
+          datasets: [{
+            data: points.map((point) => point[recentState.metric]),
+            borderColor: metric.color,
+            backgroundColor: metric.type === 'bar' ? `${metric.color}aa` : `${metric.color}22`,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: .22,
+            fill: metric.type === 'line'
+          }]
+        },
+        options: chartOptions(metric, points)
+      });
+    }
+
+    function historyRangeStart() {
+      const latest = new Date(weatherData.current.timestamp);
+      if (historyState.range === '5y') return `${latest.getFullYear() - 5}-${String(latest.getMonth() + 1).padStart(2, '0')}-${String(latest.getDate()).padStart(2, '0')}`;
+      if (historyState.range === 'all') return '0000-01-01';
+      const startYear = latest.getFullYear() - (latest.getMonth() < 9 ? 1 : 0);
+      return `${startYear}-10-01`;
+    }
+
+    function aggregateMonthly(points, key) {
+      const months = new Map();
+      points.forEach((point) => {
+        if (point[key] == null) return;
+        const month = point.date.slice(0, 7);
+        if (!months.has(month)) months.set(month, { date: month, values: [], sources: {} });
+        const record = months.get(month);
+        record.values.push(Number(point[key]));
+        record.sources[point.source] = (record.sources[point.source] || 0) + 1;
+      });
+      return Array.from(months.values()).map((month) => ({
+        date: month,
+        [key]: key === 'precip_in' ? month.values.reduce((sum, item) => sum + item, 0) : month.values.reduce((sum, item) => sum + item, 0) / month.values.length,
+        source: Object.entries(month.sources).sort((a, b) => b[1] - a[1])[0]?.[0] || 'missing'
+      }));
+    }
+
+    function renderHistoryChart() {
+      if (!weatherData || typeof Chart === 'undefined') return;
+      const metric = historyMetrics[historyState.metric];
+      let points = weatherData.daily_history.filter((point) => point.date >= historyRangeStart() && point[historyState.metric] != null);
+      if (historyState.range === 'all') points = aggregateMonthly(points, historyState.metric);
+      $('history-empty').classList.toggle('visible', points.length === 0);
+      if (historyChart) historyChart.destroy();
+      if (!points.length) return;
+      const colors = points.map((point) => sourceColors[point.source] || sourceColors.missing);
+      historyChart = new Chart($('history-chart'), {
+        type: metric.type,
+        data: {
+          labels: points.map((point) => point.date),
+          datasets: [{
+            data: points.map((point) => point[historyState.metric]),
+            borderColor: metric.type === 'line' ? metric.color : colors,
+            backgroundColor: metric.type === 'bar' ? colors : `${metric.color}1f`,
+            borderWidth: metric.type === 'bar' ? 0 : 2,
+            pointRadius: 0,
+            tension: .16,
+            fill: metric.type === 'line'
+          }]
+        },
+        options: chartOptions(metric, points, true)
+      });
+    }
+
+    function renderSources(data) {
+      $('ambient-range').textContent = `${data.coverage.ambient.start} — present`;
+      $('dendra-range').textContent = `${data.coverage.dendra.start} — ${data.coverage.dendra.end}`;
+      $('prism-range').textContent = `${data.coverage.prism.start} — ${data.coverage.prism.end}`;
+      $('method-notes').innerHTML = data.method.notes.map((note) => `<li>${note}</li>`).join('');
+    }
+
+    activateGroup('recent-metric', recentState, 'metric', renderRecentChart);
+    activateGroup('recent-range', recentState, 'range', renderRecentChart);
+    activateGroup('history-metric', historyState, 'metric', renderHistoryChart);
+    activateGroup('history-range', historyState, 'range', renderHistoryChart);
+
+    fetch('./weather_dashboard.json', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Data request failed: ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        weatherData = data;
+        renderCurrent(data);
+        renderSources(data);
+        if (typeof Chart === 'undefined') {
+          console.error('Chart library did not load');
+          $('recent-empty').textContent = 'Charts are temporarily unavailable. Live readings are still current.';
+          $('history-empty').textContent = 'Charts are temporarily unavailable. Data downloads remain available below.';
+          $('recent-empty').classList.add('visible');
+          $('history-empty').classList.add('visible');
+          return;
+        }
+        Chart.defaults.font.family = 'Inter, ui-sans-serif, system-ui, sans-serif';
+        Chart.defaults.color = '#65716b';
+        renderRecentChart();
+        renderHistoryChart();
+      })
+      .catch((error) => {
+        console.error(error);
+        $('status-dot').className = 'status-dot offline';
+        $('status-text').textContent = 'Live data unavailable';
+        $('updated-label').textContent = 'Try refreshing in a few minutes.';
+        $('error-banner').classList.add('visible');
+      });
+  </script>
 </body>
 </html>
-
-
