@@ -502,9 +502,9 @@
       <section class="hero">
         <div class="hero-inner">
           <div>
-            <p class="eyebrow">Live field weather</p>
-            <h1>Rancho Venada</h1>
-            <p class="hero-copy">Current foothill conditions, backed by a continuous station and gridded precipitation record stretching to 1981.</p>
+            <p class="eyebrow">Rancho Venada field station</p>
+            <h1>Meteorological observations</h1>
+            <p class="hero-copy">Current Ambient station observations and a quality-controlled daily record using Dendra station data and PRISM precipitation.</p>
           </div>
           <aside class="live-panel" aria-live="polite">
             <div class="status-row"><span class="status-dot" id="status-dot"></span><span id="status-text">Loading station feed</span></div>
@@ -524,40 +524,40 @@
           <span class="metric-note" id="feels">Ambient station</span>
         </article>
         <article class="condition-card">
-          <span class="metric-label">Humidity</span>
+          <span class="metric-label">Relative humidity</span>
           <span class="metric-value" id="humidity">—</span>
           <span class="metric-note" id="dewpoint">Dew point —</span>
         </article>
         <article class="condition-card">
-          <span class="metric-label">Wind</span>
+          <span class="metric-label">Wind speed · 10 min</span>
           <span class="metric-value" id="wind">—</span>
           <span class="metric-note" id="gust">Gust —</span>
         </article>
         <article class="condition-card">
-          <span class="metric-label">Rain today</span>
+          <span class="metric-label">Precipitation · today</span>
           <span class="metric-value" id="rain">—</span>
           <span class="metric-note" id="event-rain">Current event —</span>
         </article>
         <article class="condition-card">
-          <span class="metric-label">Barometer</span>
+          <span class="metric-label">Barometric pressure</span>
           <span class="metric-value" id="pressure">—</span>
           <span class="metric-note" id="solar">Solar radiation —</span>
         </article>
       </section>
 
       <section class="summary-grid" aria-label="Weather summary">
-        <div class="summary-item"><span>Water year rain</span><strong id="wy-rain">—</strong></div>
-        <div class="summary-item"><span>Last 24 hours</span><strong id="rain-24h">—</strong></div>
-        <div class="summary-item"><span>Today's range</span><strong id="today-range">—</strong></div>
-        <div class="summary-item"><span>Peak gust · 24h</span><strong id="peak-gust">—</strong></div>
+        <div class="summary-item"><span>Water-year precipitation</span><strong id="wy-rain">—</strong></div>
+        <div class="summary-item"><span>Precipitation · 24h</span><strong id="rain-24h">—</strong></div>
+        <div class="summary-item"><span>Air temperature range · today</span><strong id="today-range">—</strong></div>
+        <div class="summary-item"><span>Peak wind gust · 24h</span><strong id="peak-gust">—</strong></div>
       </section>
 
       <section class="panel" aria-labelledby="recent-heading">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow" style="color:var(--pine-700)">Seven-day station window</p>
-            <h2 id="recent-heading">Weather in motion</h2>
-            <p>Temperature, rain, humidity, and wind from the live Ambient feed.</p>
+            <p class="eyebrow" style="color:var(--pine-700)">Ambient Weather · five-minute observations</p>
+            <h2 id="recent-heading">Recent observations</h2>
+            <p>Air temperature, precipitation, relative humidity, and wind speed.</p>
           </div>
           <div class="controls" aria-label="Recent chart controls">
             <div class="segmented" id="recent-metric">
@@ -581,14 +581,15 @@
       <section class="panel history-panel" aria-labelledby="history-heading">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow" style="color:var(--pine-700)">Merged daily record</p>
-            <h2 id="history-heading">Weather through time</h2>
-            <p>Observed station data where available, with PRISM precipitation filling earlier gaps.</p>
+            <p class="eyebrow" style="color:var(--pine-700)">Daily and water-year summaries</p>
+            <h2 id="history-heading">Precipitation and air temperature</h2>
+            <p>Water years begin October 1. Station observations are used where complete; PRISM fills precipitation gaps.</p>
           </div>
           <div class="controls" aria-label="Historical chart controls">
             <div class="segmented" id="history-metric">
-              <button class="active" type="button" data-value="precip_in" aria-pressed="true">Precipitation</button>
-              <button type="button" data-value="temp_mean_f" aria-pressed="false">Temperature</button>
+              <button class="active" type="button" data-value="wy_cumulative_in" aria-pressed="true">Cumulative WY precipitation</button>
+              <button type="button" data-value="precip_in" aria-pressed="false">Daily precipitation</button>
+              <button type="button" data-value="temp_mean_f" aria-pressed="false">Mean temperature</button>
             </div>
             <div class="segmented" id="history-range">
               <button class="active" type="button" data-value="wy" aria-pressed="true">Water year</button>
@@ -606,9 +607,9 @@
       <section class="panel" id="sources" aria-labelledby="sources-heading">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow" style="color:var(--pine-700)">Coverage & provenance</p>
-            <h2 id="sources-heading">One record, three sources</h2>
-            <p>Station observations take priority; PRISM fills precipitation gaps.</p>
+            <p class="eyebrow" style="color:var(--pine-700)">Data provenance</p>
+            <h2 id="sources-heading">Source coverage</h2>
+            <p>Daily values are selected using the source priority and completeness criteria below.</p>
           </div>
         </div>
         <div class="source-grid">
@@ -623,7 +624,7 @@
           <a class="download-link" href="./prism.csv" download>PRISM precipitation CSV</a>
         </div>
         <details class="method">
-          <summary>How this record is assembled</summary>
+          <summary>Data processing and source priority</summary>
           <ul id="method-notes"><li>Loading merge notes…</li></ul>
         </details>
       </section>
@@ -651,6 +652,7 @@
       wind_mph: { label: 'Wind', unit: ' mph', color: '#789b82', type: 'line', digits: 1 }
     };
     const historyMetrics = {
+      wy_cumulative_in: { label: 'Cumulative water-year precipitation', unit: ' in', color: '#2d7d9a', type: 'line', digits: 2, beginAtZero: true },
       precip_in: { label: 'Daily precipitation', unit: ' in', color: '#2d7d9a', type: 'bar', digits: 2 },
       temp_mean_f: { label: 'Daily mean temperature', unit: '°F', color: '#c66a3c', type: 'line', digits: 1 }
     };
@@ -659,7 +661,7 @@
     let recentChart;
     let historyChart;
     const recentState = { metric: 'temp_f', range: '48h' };
-    const historyState = { metric: 'precip_in', range: 'wy' };
+    const historyState = { metric: 'wy_cumulative_in', range: 'wy' };
 
     function relativeAge(timestamp) {
       const minutes = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 60000);
@@ -708,7 +710,7 @@
             ticks: { color: '#65716b', maxTicksLimit: historical ? 10 : 8, maxRotation: 0 }
           },
           y: {
-            beginAtZero: metric.type === 'bar',
+            beginAtZero: metric.type === 'bar' || metric.beginAtZero === true,
             grid: { color: 'rgba(47,98,83,.09)' },
             ticks: { color: '#65716b', callback: (tick) => `${tick}${metric.unit}` }
           }
@@ -723,7 +725,8 @@
               label: (context) => `${metric.label}: ${Number(context.raw).toFixed(metric.digits)}${metric.unit}`,
               footer: historical ? (items) => {
                 const source = points[items[0].dataIndex]?.source || '';
-                return source ? `Source: ${source.replace('-', ' ')}` : '';
+                const prefix = metric === historyMetrics.wy_cumulative_in ? 'Daily input source' : 'Source';
+                return source ? `${prefix}: ${source.replace('-', ' ')}` : '';
               } : undefined
             }
           }
@@ -735,13 +738,13 @@
       const current = data.current;
       setStatus(current.timestamp);
       $('temp').textContent = value(current.temp_f, '°', 0);
-      $('feels').textContent = `Feels like ${value(current.feels_like_f, '°F', 0)}`;
+      $('feels').textContent = `Apparent temperature ${value(current.feels_like_f, '°F', 0)}`;
       $('humidity').textContent = value(current.humidity_pct, '%', 0);
-      $('dewpoint').textContent = `Dew point ${value(current.dew_point_f, '°F', 0)}`;
+      $('dewpoint').textContent = `Dew-point temperature ${value(current.dew_point_f, '°F', 0)}`;
       $('wind').textContent = value(current.wind_mph, ' mph', 1);
-      $('gust').textContent = `${cardinal(current.wind_direction_deg)} · gust ${value(current.gust_mph, ' mph', 1)}`;
+      $('gust').textContent = `${cardinal(current.wind_direction_deg)} · peak gust ${value(current.gust_mph, ' mph', 1)}`;
       $('rain').textContent = value(current.rain_today_in, ' in', 2);
-      $('event-rain').textContent = `Current event ${value(current.rain_event_in, ' in', 2)}`;
+      $('event-rain').textContent = `Storm/event total ${value(current.rain_event_in, ' in', 2)}`;
       $('pressure').textContent = value(current.pressure_inhg, ' in', 2);
       $('solar').textContent = `Solar radiation ${value(current.solar_wm2, ' W/m²', 0)}`;
       $('conditions').classList.remove('loading');
@@ -813,15 +816,36 @@
       });
       return Array.from(months.values()).map((month) => ({
         date: month,
-        [key]: key === 'precip_in' ? month.values.reduce((sum, item) => sum + item, 0) : month.values.reduce((sum, item) => sum + item, 0) / month.values.length,
+        [key]: key === 'precip_in'
+          ? month.values.reduce((sum, item) => sum + item, 0)
+          : key === 'wy_cumulative_in'
+            ? month.values.at(-1)
+            : month.values.reduce((sum, item) => sum + item, 0) / month.values.length,
         source: Object.entries(month.sources).sort((a, b) => b[1] - a[1])[0]?.[0] || 'missing'
       }));
+    }
+
+    function addWaterYearCumulative(points) {
+      let cumulative = 0;
+      let currentWaterYear = null;
+      return points.map((point) => {
+        const date = new Date(`${point.date}T12:00:00`);
+        const waterYear = date.getFullYear() + (date.getMonth() >= 9 ? 1 : 0);
+        if (waterYear !== currentWaterYear) {
+          currentWaterYear = waterYear;
+          cumulative = 0;
+        }
+        if (point.precip_in == null) return { ...point, wy_cumulative_in: null, water_year: waterYear };
+        cumulative += Number(point.precip_in);
+        return { ...point, wy_cumulative_in: Number(cumulative.toFixed(3)), water_year: waterYear };
+      });
     }
 
     function renderHistoryChart() {
       if (!weatherData || typeof Chart === 'undefined') return;
       const metric = historyMetrics[historyState.metric];
-      let points = weatherData.daily_history.filter((point) => point.date >= historyRangeStart() && point[historyState.metric] != null);
+      let points = addWaterYearCumulative(weatherData.daily_history)
+        .filter((point) => point.date >= historyRangeStart() && point[historyState.metric] != null);
       if (historyState.range === 'all') points = aggregateMonthly(points, historyState.metric);
       $('history-empty').classList.toggle('visible', points.length === 0);
       if (historyChart) historyChart.destroy();

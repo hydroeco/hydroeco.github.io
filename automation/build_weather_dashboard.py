@@ -318,6 +318,7 @@ def build() -> dict[str, object]:
                 "Dendra backfills earlier station days; one 7,999 mm logger sentinel is rejected.",
                 "PRISM fills precipitation-only days when station coverage is incomplete.",
                 "Daily station records require at least 200 observations, except the active day.",
+                "Cumulative water-year precipitation omits days marked missing; water years begin October 1.",
             ],
         },
     }
