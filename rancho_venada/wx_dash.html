@@ -989,12 +989,22 @@
     });
     syncUnitToggle();
 
-    fetch('./weather_dashboard.json', { cache: 'no-store' })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Data request failed: ${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
+    const fetchWeatherFile = (path) => fetch(path, { cache: 'no-store' }).then((response) => {
+      if (!response.ok) throw new Error(`${path} request failed: ${response.status}`);
+      return response.json();
+    });
+
+    Promise.all([
+      fetchWeatherFile('./weather_live.json'),
+      fetchWeatherFile('./weather_history.json')
+    ])
+      .then(([live, history]) => {
+        const dailyByDate = new Map(history.daily_history.map((record) => [record.date, record]));
+        if (live.active_day) dailyByDate.set(live.active_day.date, live.active_day);
+        const data = {
+          ...live,
+          daily_history: Array.from(dailyByDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+        };
         weatherData = data;
         renderCurrent(data);
         renderSources(data);

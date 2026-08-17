@@ -5,3 +5,4 @@ __pycache__/
 *.log
 *.tmp
 syslog
+automation/__pycache__/

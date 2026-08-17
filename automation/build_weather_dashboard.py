@@ -15,7 +15,8 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO / "rancho_venada"
-OUTPUT = DATA_DIR / "weather_dashboard.json"
+LIVE_OUTPUT = DATA_DIR / "weather_live.json"
+HISTORY_OUTPUT = DATA_DIR / "weather_history.json"
 TIMEZONE = "America/Los_Angeles"
 AMBIENT_MIN_DAILY_SAMPLES = 200
 DENDRA_MIN_DAILY_SAMPLES = 200
@@ -272,7 +273,7 @@ def latest_conditions(ambient: pd.DataFrame) -> dict[str, object]:
     }
 
 
-def build() -> dict[str, object]:
+def build() -> tuple[dict[str, object], dict[str, object]]:
     ambient = load_ambient()
     dendra = load_dendra()
     prism = load_prism()
@@ -280,16 +281,21 @@ def build() -> dict[str, object]:
     history, source_counts = merged_history(ambient, dendra, prism)
 
     now = dt.datetime.now(dt.timezone.utc).astimezone()
-    return {
+    current = latest_conditions(ambient)
+    active_date = current["timestamp"][:10]
+    active_day = next((record for record in history if record["date"] == active_date), None)
+    historical_days = [record for record in history if record["date"] < active_date]
+
+    live_payload = {
         "generated_at": now.isoformat(timespec="seconds"),
         "station": {
             "name": "Rancho Venada",
             "timezone": TIMEZONE,
             "elevation_note": "Sierra Nevada foothills",
         },
-        "current": latest_conditions(ambient),
+        "current": current,
         "live_7d": live,
-        "daily_history": history,
+        "active_day": active_day,
         "coverage": {
             "selected_days": source_counts,
             "ambient": {
@@ -322,11 +328,13 @@ def build() -> dict[str, object]:
             ],
         },
     }
+    history_payload = {"daily_history": historical_days}
+    return live_payload, history_payload
 
 
-def write_atomic(payload: dict[str, object]) -> None:
+def write_atomic(payload: dict[str, object], output: Path) -> None:
     descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{OUTPUT.name}.", suffix=".tmp", dir=OUTPUT.parent
+        prefix=f".{output.name}.", suffix=".tmp", dir=output.parent
     )
     os.close(descriptor)
     temporary = Path(temporary_name)
@@ -335,15 +343,16 @@ def write_atomic(payload: dict[str, object]) -> None:
             json.dump(payload, handle, separators=(",", ":"), allow_nan=False)
             handle.write("\n")
         os.chmod(temporary, 0o644)
-        os.replace(temporary, OUTPUT)
+        os.replace(temporary, output)
     finally:
         temporary.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
-    result = build()
-    write_atomic(result)
+    live_result, history_result = build()
+    write_atomic(live_result, LIVE_OUTPUT)
+    write_atomic(history_result, HISTORY_OUTPUT)
     print(
-        f"Wrote {OUTPUT.name}: {len(result['live_7d']):,} recent points and "
-        f"{len(result['daily_history']):,} daily records"
+        f"Wrote {LIVE_OUTPUT.name} with {len(live_result['live_7d']):,} recent points; "
+        f"{HISTORY_OUTPUT.name} with {len(history_result['daily_history']):,} historical days"
     )

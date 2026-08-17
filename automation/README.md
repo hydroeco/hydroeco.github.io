@@ -5,10 +5,10 @@ The Raspberry Pi runs one locked Ambient pipeline from cron:
 - `ambient_weather.py` downloads Ambient Weather observations, repairs recent
   gaps, and rotates completed years into annual CSV files.
 - `build_weather_dashboard.py` merges live Ambient data with historical Dendra
-  station data and PRISM precipitation gap fills, then writes the compact JSON
-  used by the Rancho Venada weather dashboard.
-- `publish_hydroeco.sh` stages only known generated weather files, commits when
-  content changed, pushes `master`, and performs lightweight Git maintenance.
+  station data and PRISM precipitation gap fills. It writes a small hourly live
+  file and a separate historical file that changes only when daily data change.
+- `publish_hydroeco.sh` publishes only the small live JSON hourly. Daily mode
+  also publishes the historical JSON and partitioned Ambient CSV files.
 
 Dendra polling is paused because the remote station feed is stale. Its local
 history remains the preferred backfill between PRISM and Ambient coverage.
