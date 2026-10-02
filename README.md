@@ -1,11 +1,13 @@
 # HydroEco weather data
 
-This repository publishes the Rancho Venada meteorological dashboard at
-<https://hydroeco.github.io/rancho_venada/wx_dash.html>.
+This repository maintains the Rancho Venada weather-processing code and source
+archive. The public dashboard is published at
+<https://daviddralle.github.io/field-sites/rancho/>.
 
 ## Current contents
 
-- `rancho_venada/wx_dash.html`: static dashboard interface.
+- `rancho_venada/wx_dash.html`: compatibility redirect for the former dashboard
+  URL.
 - `rancho_venada/weather_live.json`: current conditions and seven-day series,
   updated hourly.
 - `rancho_venada/weather_history.json`: merged daily historical record.

@@ -7,8 +7,10 @@ The Raspberry Pi runs one locked Ambient pipeline from cron:
 - `build_weather_dashboard.py` merges live Ambient data with historical Dendra
   station data and PRISM precipitation gap fills. It writes a small hourly live
   file and a separate historical file that changes only when daily data change.
-- `publish_hydroeco.sh` publishes only the small live JSON hourly. Daily mode
-  also publishes the historical JSON and partitioned Ambient CSV files.
+- `publish_hydroeco.sh` copies the small live JSON into the
+  `daviddralle.github.io` field-site dashboard hourly. Daily mode also publishes
+  the historical JSON there and preserves the partitioned Ambient CSV archive
+  in this repository.
 
 Dendra polling is paused because the remote station feed is stale. Its local
 history remains the preferred backfill between PRISM and Ambient coverage.
@@ -20,5 +22,7 @@ Credentials are intentionally outside this repository in
 sanitized Dendra client is versioned here and linked into the user's Python
 site-packages directory for older local scripts that import it.
 
-Machine-specific cron wrappers live in `~/hydroeco-automation`. Both Ambient wrappers
-use the same `flock` lock so the data and Git operations cannot overlap.
+Machine-specific cron wrappers live in `~/hydroeco-automation`. Both Ambient
+wrappers use the same `flock` lock so data and Git operations cannot overlap.
+The public dashboard is
+<https://daviddralle.github.io/field-sites/rancho/>.
