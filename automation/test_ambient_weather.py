@@ -15,7 +15,7 @@ def frame(times, yearly, daily, event=None):
     return pd.DataFrame({'yearlyrainin':yearly, 'dailyrainin':daily,
         'eventrainin':event if event is not None else yearly,
         'tempf':60., 'humidity':50., 'windspdmph_avg10m':1.,
-        'windspeedmph':1., 'windgustmph':2., 'solarradiation':10.},index=index)
+        'windspeedmph':1., 'windgustmph':2., 'solarradiation':10., 'uv':1.},index=index)
 
 
 class WeatherRegressionTests(unittest.TestCase):
@@ -26,6 +26,13 @@ class WeatherRegressionTests(unittest.TestCase):
         self.assertEqual(merged.tempf.iloc[0],60)
         self.assertEqual(merged.dailyrainin.iloc[0],.1)
         self.assertEqual(merged.humidity.iloc[0],55)
+
+    def test_new_fractional_rain_is_not_cast_to_old_integer_dry_column(self):
+        old=frame(['2026-10-20 12:00'],[0],[0])
+        new=frame(['2026-10-20 12:05'],[.01],[.01])
+        result=a.align_partition(a.merge_frames(old,new),old)
+        self.assertEqual(result.dailyrainin.iloc[-1],.01)
+        self.assertEqual(result.yearlyrainin.iloc[-1],.01)
 
     def test_daily_reset_does_not_lose_midnight_rain(self):
         f=frame(['2026-04-26 23:55','2026-04-27 00:00','2026-04-27 00:05'],[22.70,22.72,22.73],[.29,0,.01])
@@ -68,6 +75,26 @@ class WeatherRegressionTests(unittest.TestCase):
         self.assertEqual(records[-1]['source'],'ambient')
         self.assertEqual(records[-1]['precip_in'],.287)
         self.assertIsNone(records[-1]['temp_mean_f'])
+
+    def test_retained_cumulative_rain_is_not_replaced_due_to_low_sample_count(self):
+        f=frame(['2024-02-05 01:07','2024-02-05 23:55','2024-02-06 00:00'],[14.15,14.33,14.33],[.11,.29,0])
+        idx=pd.date_range('2024-02-05',periods=288,freq='5min')
+        dendra=pd.DataFrame({'RanchoVenadaWs_Rainfall':.047*25.4/288, 'RanchoVenadaWs_Air_Temp_Avg':20., 'RanchoVenadaWs_Relative_Humidity_Max':50., 'RanchoVenadaWs_Wind_Speed_Avg':1.},index=idx)
+        records,_=b.merged_history(f,dendra,pd.Series([0.],index=pd.to_datetime(['2024-02-05'])))
+        self.assertEqual(records[0]['precip_in'],.29)
+        self.assertEqual(records[0]['source'],'ambient')
+
+    def test_latest_rain_is_kept_when_latest_temperature_is_missing(self):
+        f=frame(['2026-10-20 12:00','2026-10-20 12:05'],[1,1.1],[0,.1])
+        f.loc[f.index[-1],'tempf']=float('nan')
+        latest=b.latest_conditions(f)
+        self.assertEqual(latest['timestamp'],f.index[-1].isoformat())
+        self.assertEqual(latest['rain_today_in'],.1)
+        self.assertIsNone(latest['temp_f'])
+
+    def test_repair_checks_rain_retained_only_in_annual_counter(self):
+        f=frame(['2026-04-23 08:35','2026-04-23 08:40'],[22.40,22.41],[0,0])
+        self.assertEqual(a.repair_days(f,f.index[0]),[f.index[0].normalize()])
 
     def test_candidates_include_partial_fields_and_all_gap_days(self):
         f=frame(['2026-10-20 00:00','2026-10-20 00:05','2026-10-23 00:00'],[0,0,0],[0,0,0])

@@ -208,17 +208,15 @@ def merged_history(
         )
         dendra_good = dendra_row is not None and dendra_row["rain_count"] >= DENDRA_MIN_DAILY_SAMPLES
 
-        rain_good = ambient_row is not None and pd.notna(ambient_row["rain_in"]) and (
-            ambient_row["rain_count"] >= AMBIENT_MIN_DAILY_SAMPLES or date == current_date
-        )
+        # Cumulative counters retain rainfall through gaps. A temperature-style
+        # sample-count threshold would discard that recorded accumulation.
+        rain_good = ambient_row is not None and pd.notna(ambient_row["rain_in"])
         if rain_good:
             source, precip = "ambient", ambient_row["rain_in"]
         elif dendra_good:
             source, precip = "dendra", dendra_row["rain_in"]
         elif not pd.isna(prism_mm):
             source, precip = "prism", prism_mm / 25.4
-        elif ambient_row is not None and pd.notna(ambient_row["rain_in"]):
-            source, precip = "ambient-partial", ambient_row["rain_in"]
         elif dendra_row is not None and dendra_row["rain_count"] > 0:
             source, precip = "dendra-partial", dendra_row["rain_in"]
         else:
@@ -335,7 +333,7 @@ def build() -> tuple[dict[str, object], dict[str, object]]:
                 "Rainfall uses cumulative counter changes, with daily and storm counters at resets; midnight outage totals are reconciled with the resumed daily counter.",
                 "Dendra backfills earlier station days; one 7,999 mm logger sentinel is rejected.",
                 "PRISM fills precipitation-only days when station coverage is incomplete.",
-                "Daily rain and temperature coverage are assessed independently; complete days require at least 200 observations, except the active day.",
+                "Rainfall retained by cumulative counters is used independently of temperature sample counts; complete temperature days require at least 200 observations, except the active day.",
                 "Cumulative water-year precipitation omits days marked missing; water years begin October 1.",
             ],
         },

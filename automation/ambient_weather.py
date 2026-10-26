@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -89,6 +90,21 @@ def atomic_write(frame: pd.DataFrame, path: Path) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def wait_for_request_slot() -> None:
+    """Share Ambient's one-request-per-second budget across updater/repair jobs."""
+    path = HOME / ".local/state/ambient-api-rate.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        handle.seek(0)
+        previous = float(handle.read() or 0)
+        time.sleep(max(0.0, min(1.2, 1.2 - (time.time() - previous))))
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(time.time()))
+        handle.flush()
+
+
 def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.DataFrame:
     query = urlencode(
         {
@@ -103,6 +119,7 @@ def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.Da
     last_error: Exception | None = None
     for attempt in range(1, 4):
         try:
+            wait_for_request_slot()
             with urlopen(url, timeout=20) as response:
                 records = json.loads(response.read().decode("utf-8"))
             if not records:
@@ -115,7 +132,8 @@ def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.Da
             return frame.loc[~frame.index.duplicated(keep="last")].sort_index()
         except Exception as error:  # network and malformed responses use the same retry policy
             last_error = error
-            print(f"Ambient request attempt {attempt}/3 failed: {type(error).__name__}")
+            status = f" HTTP {error.code}" if hasattr(error, "code") else ""
+            print(f"Ambient request attempt {attempt}/3 failed: {type(error).__name__}{status}")
             if attempt < 3:
                 time.sleep(2**attempt)
     raise RuntimeError("Ambient Weather request failed after three attempts") from None
@@ -129,6 +147,22 @@ def merge_frames(*frames: pd.DataFrame) -> pd.DataFrame:
     # Prefer the latest non-null field, rather than replacing an entire good row
     # with a later partial response. This never fills across observation times.
     return combined.groupby(level=0, sort=True).last()
+
+
+def align_partition(frame: pd.DataFrame, original: pd.DataFrame) -> pd.DataFrame:
+    """Keep the archive's schema and representation without truncating new data."""
+    columns = list(original.columns) + [column for column in frame
+               if column not in original and frame[column].notna().any()]
+    result = frame.reindex(columns=columns).copy()
+    for column, dtype in original.dtypes.items():
+        try:
+            converted = result[column].astype(dtype)
+        except (ValueError, TypeError, OverflowError):
+            continue
+        same = converted.eq(result[column]) | (converted.isna() & result[column].isna())
+        if same.all():
+            result[column] = converted
+    return result
 
 
 def save_partitioned(frame: pd.DataFrame) -> None:
@@ -181,7 +215,7 @@ def update() -> None:
     print(f"Update complete: {len(combined) - before:,} net new rows")
 
 
-CORE_FIELDS = ["tempf", "humidity", "windspeedmph", "solarradiation", "dailyrainin", "yearlyrainin"]
+CORE_FIELDS = ["tempf", "humidity", "windspeedmph", "windspdmph_avg10m", "windgustmph", "solarradiation", "uv", "dailyrainin", "yearlyrainin"]
 REPAIR_STATE = HOME / ".local/state/ambient-repair.json"
 
 
@@ -191,7 +225,7 @@ def repair_days(frame: pd.DataFrame, cutoff: pd.Timestamp) -> list[pd.Timestamp]
     fields = recent.reindex(columns=CORE_FIELDS)
     days = set(recent.index[fields.isna().any(axis=1)].normalize())
     # Also replay wet days to catch revised rain counters, independent of temp.
-    days.update(recent.index[fields.dailyrainin.gt(0)].normalize())
+    days.update(recent.index[fields.dailyrainin.gt(0) | fields.yearlyrainin.diff().gt(0)].normalize())
     gaps = frame.index.to_series().diff()
     for end in gaps[(gaps > EXPECTED_INTERVAL + pd.Timedelta(seconds=30)) & (gaps.index >= cutoff)].index:
         start = max(end - gaps.loc[end], cutoff)
@@ -250,6 +284,7 @@ def repair(days: int, max_gaps: int) -> None:
             before = load_frame(path)
             years = set(before.index.year)
             after = repaired.loc[repaired.index.year.isin(years)]
+            after = align_partition(after, before)
             if not after.equals(before):
                 atomic_write(after, path)
         print(f"Repair complete: {len(repaired) - len(existing)} new rows")
