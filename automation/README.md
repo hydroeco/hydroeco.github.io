@@ -26,3 +26,9 @@ Machine-specific cron wrappers live in `~/hydroeco-automation`. Both Ambient
 wrappers use the same `flock` lock so data and Git operations cannot overlap.
 The public dashboard is
 <https://daviddralle.github.io/field-sites/rancho/>.
+
+The weekly repair wrapper replays up to 32 candidate days from the last 30 days,
+including incomplete outdoor fields and rain-counter increases. It pages whole
+days, allows 75 seconds for historical responses, and shares a request-rate lock
+with the hourly updater. This covers the full lookback without skipping its
+oldest dates when every day needs repair.

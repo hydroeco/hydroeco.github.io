@@ -26,6 +26,7 @@ TIMEZONE = "America/Los_Angeles"
 API_URL = "https://rt.ambientweather.net/v1/devices/{mac}"
 API_LIMIT = 288
 EXPECTED_INTERVAL = pd.Timedelta(minutes=5)
+PRIVATE_FIELDS = {"passkey", "loc", "time", "apiKey", "applicationKey", "macAddress", "deviceId"}
 
 
 def load_credentials() -> dict[str, str]:
@@ -76,6 +77,7 @@ def atomic_write(frame: pd.DataFrame, path: Path) -> None:
     if output.index.tz is not None:
         output.index = output.index.tz_convert(TIMEZONE).tz_localize(None)
     output.index.name = "date"
+    output = output.drop(columns=list(PRIVATE_FIELDS), errors="ignore")
 
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
@@ -105,7 +107,7 @@ def wait_for_request_slot() -> None:
         handle.flush()
 
 
-def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.DataFrame:
+def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str], *, timeout: int = 20) -> pd.DataFrame:
     query = urlencode(
         {
             "apiKey": credentials["API_KEY"],
@@ -120,11 +122,11 @@ def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.Da
     for attempt in range(1, 4):
         try:
             wait_for_request_slot()
-            with urlopen(url, timeout=20) as response:
+            with urlopen(url, timeout=timeout) as response:
                 records = json.loads(response.read().decode("utf-8"))
             if not records:
                 return pd.DataFrame()
-            frame = pd.DataFrame(records)
+            frame = pd.DataFrame(records).drop(columns=list(PRIVATE_FIELDS), errors="ignore")
             if "date" not in frame:
                 raise RuntimeError("Ambient response did not contain a date field")
             frame.index = pd.to_datetime(frame.pop("date"), utc=True).dt.tz_convert(TIMEZONE)
@@ -239,7 +241,7 @@ def fetch_day(day: pd.Timestamp, credentials: dict[str, str]) -> pd.DataFrame:
     end = stop.tz_convert("UTC") - pd.Timedelta(seconds=1)
     chunks = []
     for _ in range(8):
-        chunk = fetch_chunk(end.to_pydatetime(), credentials)
+        chunk = fetch_chunk(end.to_pydatetime(), credentials, timeout=75)
         time.sleep(1)
         if chunk.empty:
             break
@@ -322,7 +324,7 @@ def parse_args() -> argparse.Namespace:
     subparsers.add_parser("update", help="Download and append new observations")
     repair_parser = subparsers.add_parser("repair", help="Re-query incomplete observations, wet days, and timestamp gaps")
     repair_parser.add_argument("--days", type=int, default=14, help="Lookback days; 0 includes all archives")
-    repair_parser.add_argument("--max-gaps", type=int, default=12, help="Maximum days to re-query per run")
+    repair_parser.add_argument("--max-gaps", type=int, default=32, help="Maximum days to re-query per run")
     subparsers.add_parser("check", help="Validate and summarize local data files")
     return parser.parse_args()
 

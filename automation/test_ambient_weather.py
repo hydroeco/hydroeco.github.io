@@ -106,6 +106,15 @@ class WeatherRegressionTests(unittest.TestCase):
         f=frame(['2025-07-31 12:00','2025-08-09 12:00'],[10,10],[0,0])
         self.assertEqual(daily_rain(f).tolist(),[0.]*10)
 
+    def test_station_credentials_and_location_metadata_are_not_written_to_archive(self):
+        f=frame(['2026-10-20 12:00'],[1],[.1])
+        f['passkey']='test-private-value';f['loc']='test-private-location'
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'data.csv';a.atomic_write(f,path);read=a.load_frame(path)
+        self.assertNotIn('passkey',read.columns)
+        self.assertNotIn('loc',read.columns)
+        self.assertEqual(read.dailyrainin.iloc[0],.1)
+
     def test_utc_time_preserves_both_fall_back_hours_in_csv(self):
         idx=pd.date_range('2025-11-02 08:00',periods=25,freq='5min',tz='UTC').tz_convert(a.TIMEZONE)
         f=frame(idx,[1]*len(idx),[0]*len(idx)); f['dateutc']=[int(t.timestamp()*1000) for t in idx]
