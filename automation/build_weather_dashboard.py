@@ -11,6 +11,8 @@ from pathlib import Path
 import tempfile
 
 import pandas as pd
+from ambient_rain import daily_rain, rain_increments
+from ambient_weather import localize_index
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -23,6 +25,8 @@ DENDRA_MIN_DAILY_SAMPLES = 200
 
 AMBIENT_COLUMNS = [
     "date",
+    "dateutc",
+    "yearlyrainin",
     "tempf",
     "humidity",
     "winddir",
@@ -76,9 +80,16 @@ def load_ambient() -> pd.DataFrame:
         usecols = [column for column in AMBIENT_COLUMNS if column in available]
         frame = pd.read_csv(path, usecols=usecols, parse_dates=["date"], low_memory=False)
         frame = frame.set_index("date")
+        local = localize_index(frame.index)
+        if "dateutc" in frame:
+            utc = pd.to_datetime(pd.to_numeric(frame.dateutc, errors="coerce"), unit="ms", utc=True)
+            utc_index = pd.DatetimeIndex(utc).tz_convert(TIMEZONE)
+            frame.index = utc_index.where(utc_index.notna(), local)
+        else:
+            frame.index = local
         frames.append(frame)
     ambient = pd.concat(frames, sort=False)
-    ambient = ambient.loc[~ambient.index.duplicated(keep="last")].sort_index()
+    ambient = ambient.groupby(level=0, sort=True).last()
     numeric(ambient, [column for column in AMBIENT_COLUMNS if column != "date"])
     return ambient
 
@@ -111,7 +122,8 @@ def aggregate_ambient(frame: pd.DataFrame) -> pd.DataFrame:
     daily = pd.DataFrame(
         {
             "count": grouped["tempf"].count(),
-            "rain_in": grouped["dailyrainin"].max(),
+            "rain_count": grouped["dailyrainin"].count(),
+            "rain_in": daily_rain(frame),
             "temp_min_f": grouped["tempf"].min(),
             "temp_max_f": grouped["tempf"].max(),
             "temp_mean_f": grouped["tempf"].mean(),
@@ -119,6 +131,7 @@ def aggregate_ambient(frame: pd.DataFrame) -> pd.DataFrame:
             "wind_mph": grouped["windspdmph_avg10m"].mean(),
         }
     )
+    daily.index = daily.index.tz_localize(None)
     return daily
 
 
@@ -145,27 +158,22 @@ def aggregate_dendra(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def recent_series(ambient: pd.DataFrame) -> list[dict[str, object]]:
-    recent = ambient.loc[ambient.index >= ambient.index.max() - pd.Timedelta(days=7)].copy()
-    rain = recent["dailyrainin"].clip(lower=0)
-    increment = rain.groupby(recent.index.normalize()).diff()
-    first = ~recent.index.normalize().duplicated()
-    increment.loc[first] = rain.loc[first]
-    increment = increment.where(increment.between(0, 5), 0)
-    recent["rain_increment_in"] = increment
+    # Difference against the preceding observation BEFORE slicing the window.
+    # Otherwise the first point incorrectly includes rain earlier that day.
+    recent = ambient.assign(rain_increment_in=rain_increments(ambient))
+    recent = recent.loc[recent.index >= recent.index.max() - pd.Timedelta(days=7)].copy()
 
-    sampled = recent.resample("15min").agg(
-        {
-            "tempf": "mean",
-            "humidity": "mean",
-            "windspdmph_avg10m": "mean",
-            "windgustmph": "max",
-            "rain_increment_in": "sum",
-        }
-    )
-    sampled = sampled.dropna(how="all")
+    # Keep the actual observation times so rolling rainfall totals have exact
+    # boundaries. Insert empty points only for truly missing timestamp intervals.
+    missing = []
+    for previous, current in zip(recent.index[:-1], recent.index[1:]):
+        if current - previous > pd.Timedelta(minutes=7.5):
+            missing.extend(pd.date_range(previous + pd.Timedelta(minutes=5),
+                                         current - pd.Timedelta(minutes=2.5), freq="5min"))
+    sampled = recent.reindex(recent.index.union(pd.DatetimeIndex(missing))) if missing else recent
     records = []
     for timestamp, row in sampled.iterrows():
-        aware = timestamp.tz_localize(TIMEZONE, ambiguous=False, nonexistent="shift_forward")
+        aware = timestamp.tz_convert(TIMEZONE)
         records.append(
             {
                 "t": aware.isoformat(),
@@ -184,9 +192,9 @@ def merged_history(
 ) -> tuple[list[dict[str, object]], dict[str, int]]:
     ambient_daily = aggregate_ambient(ambient)
     dendra_daily = aggregate_dendra(dendra)
-    dates = pd.date_range(prism.index.min().normalize(), ambient.index.max().normalize(), freq="D")
+    dates = pd.date_range(prism.index.min().normalize(), ambient.index.max().normalize().tz_localize(None), freq="D")
     prism_daily = prism.reindex(dates)
-    current_date = ambient.index.max().normalize()
+    current_date = ambient.index.max().normalize().tz_localize(None)
     counts = {"ambient": 0, "dendra": 0, "prism": 0, "partial": 0, "missing": 0}
     records = []
 
@@ -200,13 +208,16 @@ def merged_history(
         )
         dendra_good = dendra_row is not None and dendra_row["rain_count"] >= DENDRA_MIN_DAILY_SAMPLES
 
-        if ambient_good:
+        rain_good = ambient_row is not None and pd.notna(ambient_row["rain_in"]) and (
+            ambient_row["rain_count"] >= AMBIENT_MIN_DAILY_SAMPLES or date == current_date
+        )
+        if rain_good:
             source, precip = "ambient", ambient_row["rain_in"]
         elif dendra_good:
             source, precip = "dendra", dendra_row["rain_in"]
         elif not pd.isna(prism_mm):
             source, precip = "prism", prism_mm / 25.4
-        elif ambient_row is not None and ambient_row["count"] > 0:
+        elif ambient_row is not None and pd.notna(ambient_row["rain_in"]):
             source, precip = "ambient-partial", ambient_row["rain_in"]
         elif dendra_row is not None and dendra_row["rain_count"] > 0:
             source, precip = "dendra-partial", dendra_row["rain_in"]
@@ -251,9 +262,9 @@ def merged_history(
 
 
 def latest_conditions(ambient: pd.DataFrame) -> dict[str, object]:
-    latest = ambient.dropna(subset=["tempf"]).iloc[-1]
-    timestamp = ambient.dropna(subset=["tempf"]).index[-1]
-    aware = timestamp.tz_localize(TIMEZONE, ambiguous=False, nonexistent="shift_forward")
+    latest = ambient.iloc[-1]
+    timestamp = ambient.index[-1]
+    aware = timestamp.tz_convert(TIMEZONE)
     return {
         "timestamp": aware.isoformat(),
         "temp_f": number(latest.get("tempf"), 1),
@@ -321,9 +332,10 @@ def build() -> tuple[dict[str, object], dict[str, object]]:
             "precipitation_priority": ["Ambient", "Dendra", "PRISM"],
             "notes": [
                 "Ambient supplies current five-minute station observations.",
+                "Rainfall uses cumulative counter changes, with daily and storm counters at resets; midnight outage totals are reconciled with the resumed daily counter.",
                 "Dendra backfills earlier station days; one 7,999 mm logger sentinel is rejected.",
                 "PRISM fills precipitation-only days when station coverage is incomplete.",
-                "Daily station records require at least 200 observations, except the active day.",
+                "Daily rain and temperature coverage are assessed independently; complete days require at least 200 observations, except the active day.",
                 "Cumulative water-year precipitation omits days marked missing; water years begin October 1.",
             ],
         },

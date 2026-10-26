@@ -57,7 +57,14 @@ def localize_index(index: pd.Index) -> pd.DatetimeIndex:
 
 def load_frame(path: Path) -> pd.DataFrame:
     frame = pd.read_csv(path, index_col=0, low_memory=False)
-    frame.index = localize_index(frame.index)
+    local_index = localize_index(frame.index)
+    # The UTC observation time preserves both occurrences of the fall-back hour.
+    if "dateutc" in frame:
+        utc = pd.to_datetime(pd.to_numeric(frame["dateutc"], errors="coerce"), unit="ms", utc=True)
+        utc_index = pd.DatetimeIndex(utc).tz_convert(TIMEZONE)
+        frame.index = utc_index.where(utc_index.notna(), local_index)
+    else:
+        frame.index = local_index
     frame = frame.loc[~frame.index.isna()]
     return frame.loc[~frame.index.duplicated(keep="last")].sort_index()
 
@@ -87,7 +94,7 @@ def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.Da
         {
             "apiKey": credentials["API_KEY"],
             "applicationKey": credentials["APP_KEY"],
-            "endDate": end_date_utc.strftime("%Y-%m-%dT%H:%M"),
+            "endDate": end_date_utc.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "limit": API_LIMIT,
         }
     )
@@ -111,7 +118,7 @@ def fetch_chunk(end_date_utc: dt.datetime, credentials: dict[str, str]) -> pd.Da
             print(f"Ambient request attempt {attempt}/3 failed: {type(error).__name__}")
             if attempt < 3:
                 time.sleep(2**attempt)
-    raise RuntimeError("Ambient Weather request failed after three attempts") from last_error
+    raise RuntimeError("Ambient Weather request failed after three attempts") from None
 
 
 def merge_frames(*frames: pd.DataFrame) -> pd.DataFrame:
@@ -119,7 +126,9 @@ def merge_frames(*frames: pd.DataFrame) -> pd.DataFrame:
     if not populated:
         return pd.DataFrame()
     combined = pd.concat(populated, sort=False)
-    return combined.loc[~combined.index.duplicated(keep="last")].sort_index()
+    # Prefer the latest non-null field, rather than replacing an entire good row
+    # with a later partial response. This never fills across observation times.
+    return combined.groupby(level=0, sort=True).last()
 
 
 def save_partitioned(frame: pd.DataFrame) -> None:
@@ -172,36 +181,83 @@ def update() -> None:
     print(f"Update complete: {len(combined) - before:,} net new rows")
 
 
-def repair(days: int, max_gaps: int) -> None:
-    credentials = load_credentials()
-    existing = load_frame(LIVE_FILE)
-    cutoff = pd.Timestamp.now(tz=TIMEZONE) - pd.Timedelta(days=days)
-    recent = existing.loc[existing.index >= cutoff]
-    gaps = recent.index.to_series().diff()
-    gap_ends = list(gaps[gaps > EXPECTED_INTERVAL * 4].index[:max_gaps])
-    if not gap_ends:
-        print(f"No gaps over 20 minutes in the last {days} days")
-        return
+CORE_FIELDS = ["tempf", "humidity", "windspeedmph", "solarradiation", "dailyrainin", "yearlyrainin"]
+REPAIR_STATE = HOME / ".local/state/ambient-repair.json"
 
-    repairs: list[pd.DataFrame] = []
-    for gap_end in gap_ends:
-        previous = existing.index[existing.index.get_loc(gap_end) - 1]
-        print(f"Checking gap {previous.isoformat()} to {gap_end.isoformat()}")
-        chunk = fetch_chunk(gap_end.tz_convert("UTC").to_pydatetime(), credentials)
-        if chunk.empty:
-            continue
-        valid = chunk.loc[(chunk.index > previous) & (chunk.index < gap_end)]
-        if not valid.empty:
-            repairs.append(valid)
-            print(f"Recovered {len(valid):,} rows")
+
+def repair_days(frame: pd.DataFrame, cutoff: pd.Timestamp) -> list[pd.Timestamp]:
+    """Include partial records and every day of a multi-day timestamp gap."""
+    recent = frame.loc[frame.index >= cutoff]
+    fields = recent.reindex(columns=CORE_FIELDS)
+    days = set(recent.index[fields.isna().any(axis=1)].normalize())
+    # Also replay wet days to catch revised rain counters, independent of temp.
+    days.update(recent.index[fields.dailyrainin.gt(0)].normalize())
+    gaps = frame.index.to_series().diff()
+    for end in gaps[(gaps > EXPECTED_INTERVAL + pd.Timedelta(seconds=30)) & (gaps.index >= cutoff)].index:
+        start = max(end - gaps.loc[end], cutoff)
+        days.update(pd.date_range(start.normalize(), end.normalize(), freq="D"))
+    return sorted(days)
+
+
+def fetch_day(day: pd.Timestamp, credentials: dict[str, str]) -> pd.DataFrame:
+    """Page until the whole local day is covered, including 25-hour DST days."""
+    stop = day + pd.DateOffset(days=1)
+    end = stop.tz_convert("UTC") - pd.Timedelta(seconds=1)
+    chunks = []
+    for _ in range(8):
+        chunk = fetch_chunk(end.to_pydatetime(), credentials)
         time.sleep(1)
+        if chunk.empty:
+            break
+        chunks.append(chunk.loc[(chunk.index >= day) & (chunk.index < stop)])
+        oldest = chunk.index.min().tz_convert("UTC")
+        if oldest <= day.tz_convert("UTC"):
+            break
+        if oldest >= end:
+            raise RuntimeError("Ambient pagination did not advance")
+        end = oldest - pd.Timedelta(seconds=1)
+    else:
+        raise RuntimeError("Ambient day exceeded eight pages")
+    return merge_frames(*chunks)
 
+
+def repair(days: int, max_gaps: int) -> None:
+    if days < 0 or max_gaps < 1:
+        raise ValueError("days must be non-negative and max-gaps must be positive")
+    credentials = load_credentials()
+    paths = sorted(DATA_DIR.glob("rv_ambient_[0-9][0-9][0-9][0-9].csv")) + [LIVE_FILE]
+    existing = merge_frames(*(load_frame(path) for path in paths))
+    cutoff = existing.index.min() if days == 0 else pd.Timestamp.now(tz=TIMEZONE) - pd.Timedelta(days=days)
+    candidates = repair_days(existing, cutoff)
+    state = json.loads(REPAIR_STATE.read_text()) if REPAIR_STATE.exists() else {}
+    # Old unrecoverable gaps must not permanently starve newer gaps of retries.
+    candidates.sort(key=lambda day: (state.get(str(day.date()), ""), -day.timestamp()))
+    repairs = []
+    for day in candidates[:max_gaps]:
+        fresh = fetch_day(day, credentials)
+        old = existing.reindex(index=fresh.index, columns=CORE_FIELDS)
+        values = fresh.reindex(columns=CORE_FIELDS)
+        recovered = (old.isna() & values.notna()).sum()
+        print(f"Checked {day.date()}: {len(fresh)} API rows, "
+              f"{len(fresh.index.difference(existing.index))} new timestamps, "
+              f"filled fields {recovered.to_dict()}")
+        if not fresh.empty:
+            repairs.append(fresh)
+        state[str(day.date())] = pd.Timestamp.now(tz="UTC").isoformat()
     if repairs:
         repaired = merge_frames(existing, *repairs)
-        atomic_write(repaired, LIVE_FILE)
-        print(f"Repair complete: {len(repaired) - len(existing):,} rows recovered")
-    else:
-        print("No recoverable rows were returned")
+        for path in paths:
+            before = load_frame(path)
+            years = set(before.index.year)
+            after = repaired.loc[repaired.index.year.isin(years)]
+            if not after.equals(before):
+                atomic_write(after, path)
+        print(f"Repair complete: {len(repaired) - len(existing)} new rows")
+    REPAIR_STATE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = REPAIR_STATE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, indent=2))
+    temporary.replace(REPAIR_STATE)
+    print(f"Checked {min(len(candidates), max_gaps)} of {len(candidates)} candidate days")
 
 
 def check() -> None:
@@ -217,6 +273,9 @@ def check() -> None:
             f"{path.name}: {len(frame):,} rows, {path.stat().st_size:,} bytes, "
             f"{start.isoformat()} -> {end.isoformat()}, sha256 {digest}"
         )
+        missing = frame.reindex(columns=CORE_FIELDS).isna().sum().to_dict()
+        print(f"  Missing fields: {missing}; timestamp gaps: "
+              f"{int((frame.index.to_series().diff() > EXPECTED_INTERVAL * 1.1).sum())}")
         if previous_end is not None and start <= previous_end:
             raise RuntimeError(f"Date ranges overlap at {path.name}")
         previous_end = end
@@ -226,9 +285,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("update", help="Download and append new observations")
-    repair_parser = subparsers.add_parser("repair", help="Repair recent data gaps")
-    repair_parser.add_argument("--days", type=int, default=14)
-    repair_parser.add_argument("--max-gaps", type=int, default=12)
+    repair_parser = subparsers.add_parser("repair", help="Re-query incomplete observations, wet days, and timestamp gaps")
+    repair_parser.add_argument("--days", type=int, default=14, help="Lookback days; 0 includes all archives")
+    repair_parser.add_argument("--max-gaps", type=int, default=12, help="Maximum days to re-query per run")
     subparsers.add_parser("check", help="Validate and summarize local data files")
     return parser.parse_args()
 
