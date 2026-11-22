@@ -35,7 +35,7 @@ def rain_increments(frame: pd.DataFrame) -> pd.Series:
     result.loc[values.isna().all(axis=1)] = float("nan")
     if len(result):
         result.iloc[0] = daily.iloc[0]
-    return result.round(5).rename("rain_increment_in")
+    return result.round(8).rename("rain_increment_in")
 
 
 def daily_rain(frame: pd.DataFrame) -> pd.Series:

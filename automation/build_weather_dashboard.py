@@ -181,7 +181,7 @@ def recent_series(ambient: pd.DataFrame) -> list[dict[str, object]]:
                 "humidity_pct": number(row["humidity"], 0),
                 "wind_mph": number(row["windspdmph_avg10m"], 1),
                 "gust_mph": number(row["windgustmph"], 1),
-                "rain_in": number(row["rain_increment_in"], 3),
+                "rain_in": number(row["rain_increment_in"], 8),
             }
         )
     return records

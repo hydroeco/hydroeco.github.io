@@ -16,6 +16,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 import pandas as pd
+from rain_corrections import apply_corrections, restore_observations
 
 
 HOME = Path.home()
@@ -68,12 +69,12 @@ def load_frame(path: Path) -> pd.DataFrame:
     else:
         frame.index = local_index
     frame = frame.loc[~frame.index.isna()]
-    return frame.loc[~frame.index.duplicated(keep="last")].sort_index()
+    return restore_observations(frame.loc[~frame.index.duplicated(keep="last")].sort_index())
 
 
 def atomic_write(frame: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    output = frame.loc[~frame.index.duplicated(keep="last")].sort_index().copy()
+    output = apply_corrections(frame.loc[~frame.index.duplicated(keep="last")].sort_index())
     if output.index.tz is not None:
         output.index = output.index.tz_convert(TIMEZONE).tz_localize(None)
     output.index.name = "date"
